@@ -1,0 +1,13 @@
+prefix=/home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/.snakemake/conda/338324f50be2eb50257ef3425e9b95e6_
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libedit
+Description: command line editor library provides generic line editing, history, and tokenization functions.
+Version: 3.1
+Requires:
+Libs: -L${libdir} -ledit
+Libs.private: -lncurses 
+Cflags: -I${includedir} -I${includedir}/editline
+

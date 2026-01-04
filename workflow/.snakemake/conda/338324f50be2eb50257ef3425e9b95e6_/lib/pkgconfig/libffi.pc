@@ -1,0 +1,11 @@
+prefix=/home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/.snakemake/conda/338324f50be2eb50257ef3425e9b95e6_
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+toolexeclibdir=${libdir}
+includedir=/home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/.snakemake/conda/338324f50be2eb50257ef3425e9b95e6_/include
+
+Name: libffi
+Description: Library supporting Foreign Function Interfaces
+Version: 3.5.2
+Libs: -L${toolexeclibdir} -lffi
+Cflags: -I${includedir}

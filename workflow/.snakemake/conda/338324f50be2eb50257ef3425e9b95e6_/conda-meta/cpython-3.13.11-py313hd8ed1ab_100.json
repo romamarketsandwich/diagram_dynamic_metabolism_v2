@@ -1,0 +1,34 @@
+{
+  "build": "py313hd8ed1ab_100",
+  "build_number": 100,
+  "channel": "https://conda.anaconda.org/conda-forge/noarch",
+  "constrains": [],
+  "depends": [
+    "python_abi * *_cp313",
+    "python >=3.13,<3.14.0a0"
+  ],
+  "extracted_package_dir": "/home/wamesjang/anaconda3/pkgs/cpython-3.13.11-py313hd8ed1ab_100",
+  "files": [],
+  "fn": "cpython-3.13.11-py313hd8ed1ab_100.conda",
+  "license": "Python-2.0",
+  "link": {
+    "source": "/home/wamesjang/anaconda3/pkgs/cpython-3.13.11-py313hd8ed1ab_100",
+    "type": 1
+  },
+  "md5": "5bf347916a543bcb290c780fa449bf73",
+  "name": "cpython",
+  "noarch": "python",
+  "package_tarball_full_path": "/home/wamesjang/anaconda3/pkgs/cpython-3.13.11-py313hd8ed1ab_100.conda",
+  "package_type": "noarch_python",
+  "paths_data": {
+    "paths": [],
+    "paths_version": 1
+  },
+  "requested_spec": "None",
+  "sha256": "63f677762304e6f8dc55e11dff6aafe71129cbbd0a77d176b99ba1f6a5053b77",
+  "size": 48369,
+  "subdir": "noarch",
+  "timestamp": 1765019689000,
+  "url": "https://conda.anaconda.org/conda-forge/noarch/cpython-3.13.11-py313hd8ed1ab_100.conda",
+  "version": "3.13.11"
+}

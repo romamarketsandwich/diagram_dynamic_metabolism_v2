@@ -1,0 +1,10 @@
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python =3.13
+  - ipykernel =6.29
+  - notebook =7.2
+  - numpy =2.2.0
+  - scipy =1.14.1
+  - pandas =2.2.3

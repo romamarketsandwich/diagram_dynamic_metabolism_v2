@@ -1,0 +1,11 @@
+prefix=/home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/.snakemake/conda/338324f50be2eb50257ef3425e9b95e6_
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: History
+Description: Gnu History library for managing previously-entered lines
+URL: http://tiswww.cwru.edu/php/chet/readline/rltop.html
+Version: 8.3
+Libs: -L${libdir} -lhistory
+Cflags: -I${includedir}

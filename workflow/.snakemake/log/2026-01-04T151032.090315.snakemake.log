@@ -1,0 +1,69 @@
+Assuming unrestricted shared filesystem usage.
+host: wjang
+Building DAG of jobs...
+Traceback (most recent call last):
+
+  File "/home/wamesjang/anaconda3/envs/dynamic_metabolism/lib/python3.13/site-packages/snakemake/cli.py", line 2193, in args_to_api
+    dag_api.execute_workflow(
+    ~~~~~~~~~~~~~~~~~~~~~~~~^
+        executor=args.executor,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<46 lines>...
+        scheduler_settings=scheduler_settings,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+
+  File "/home/wamesjang/anaconda3/envs/dynamic_metabolism/lib/python3.13/site-packages/snakemake/api.py", line 634, in execute_workflow
+    workflow.execute(
+    ~~~~~~~~~~~~~~~~^
+        executor_plugin=executor_plugin,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+        updated_files=updated_files,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+
+  File "/home/wamesjang/anaconda3/envs/dynamic_metabolism/lib/python3.13/site-packages/snakemake/workflow.py", line 1277, in execute
+    self._build_dag()
+    ~~~~~~~~~~~~~~~^^
+
+  File "/home/wamesjang/anaconda3/envs/dynamic_metabolism/lib/python3.13/site-packages/snakemake/workflow.py", line 1220, in _build_dag
+    async_run(self.dag.init())
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^
+
+  File "/home/wamesjang/anaconda3/envs/dynamic_metabolism/lib/python3.13/site-packages/snakemake/common/__init__.py", line 104, in async_run
+    return asyncio.run(coroutine)
+           ~~~~~~~~~~~^^^^^^^^^^^
+
+  File "/home/wamesjang/anaconda3/envs/dynamic_metabolism/lib/python3.13/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+
+  File "/home/wamesjang/anaconda3/envs/dynamic_metabolism/lib/python3.13/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+
+  File "/home/wamesjang/anaconda3/envs/dynamic_metabolism/lib/python3.13/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+
+  File "/home/wamesjang/anaconda3/envs/dynamic_metabolism/lib/python3.13/site-packages/snakemake/dag.py", line 246, in init
+    await self.file2jobs(file),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "/home/wamesjang/anaconda3/envs/dynamic_metabolism/lib/python3.13/site-packages/snakemake/dag.py", line 2609, in file2jobs
+    raise MissingRuleException(targetfile)
+          ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+
+  File "/home/wamesjang/anaconda3/envs/dynamic_metabolism/lib/python3.13/site-packages/snakemake/exceptions.py", line 423, in __init__
+    f"No rule to produce {fmt_iofile(file)} (if you use input "
+                          ~~~~~~~~~~^^^^^^
+
+  File "/home/wamesjang/anaconda3/envs/dynamic_metabolism/lib/python3.13/site-packages/snakemake/io/fmt.py", line 8, in fmt_iofile
+    if f.is_storage:
+       ^^^^^^^^^^^^
+
+AttributeError: 'str' object has no attribute 'is_storage'
+

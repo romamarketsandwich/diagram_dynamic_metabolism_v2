@@ -1,0 +1,9 @@
+rule fig_1_get_data:
+    output:
+        "resources/data/fig_1_example_data.tsv"
+    conda:
+        "envs/download.yaml"
+    log:
+        notebook="logs/get_fig_1_data.ipynb"
+    notebook:
+        "notebooks/get_fig_1_data.py.ipynb"

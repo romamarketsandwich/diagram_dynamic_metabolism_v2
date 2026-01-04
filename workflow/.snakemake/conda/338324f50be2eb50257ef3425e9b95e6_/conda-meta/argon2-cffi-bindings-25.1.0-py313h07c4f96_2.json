@@ -1,0 +1,141 @@
+{
+  "build": "py313h07c4f96_2",
+  "build_number": 2,
+  "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+  "constrains": [],
+  "depends": [
+    "__glibc >=2.17,<3.0.a0",
+    "cffi >=1.0.1",
+    "libgcc >=14",
+    "python >=3.13,<3.14.0a0",
+    "python_abi 3.13.* *_cp313"
+  ],
+  "extracted_package_dir": "/home/wamesjang/anaconda3/pkgs/argon2-cffi-bindings-25.1.0-py313h07c4f96_2",
+  "files": [
+    "lib/python3.13/site-packages/_argon2_cffi_bindings/__init__.py",
+    "lib/python3.13/site-packages/_argon2_cffi_bindings/__pycache__/__init__.cpython-313.pyc",
+    "lib/python3.13/site-packages/_argon2_cffi_bindings/__pycache__/_ffi_build.cpython-313.pyc",
+    "lib/python3.13/site-packages/_argon2_cffi_bindings/_ffi.abi3.so",
+    "lib/python3.13/site-packages/_argon2_cffi_bindings/_ffi_build.py",
+    "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/INSTALLER",
+    "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/METADATA",
+    "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/RECORD",
+    "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/REQUESTED",
+    "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/WHEEL",
+    "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/direct_url.json",
+    "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/licenses/LICENSE",
+    "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/top_level.txt"
+  ],
+  "fn": "argon2-cffi-bindings-25.1.0-py313h07c4f96_2.conda",
+  "license": "MIT",
+  "link": {
+    "source": "/home/wamesjang/anaconda3/pkgs/argon2-cffi-bindings-25.1.0-py313h07c4f96_2",
+    "type": 1
+  },
+  "md5": "27bbec9f2f3a15d32b60ec5734f5b41c",
+  "name": "argon2-cffi-bindings",
+  "package_tarball_full_path": "/home/wamesjang/anaconda3/pkgs/argon2-cffi-bindings-25.1.0-py313h07c4f96_2.conda",
+  "paths_data": {
+    "paths": [
+      {
+        "_path": "lib/python3.13/site-packages/_argon2_cffi_bindings/__init__.py",
+        "path_type": "hardlink",
+        "sha256": "6fa0daebf442b0c5ca6c0f50cb32a6786aa6f5c6228e6b64009a8d395d95e746",
+        "sha256_in_prefix": "6fa0daebf442b0c5ca6c0f50cb32a6786aa6f5c6228e6b64009a8d395d95e746",
+        "size_in_bytes": 86
+      },
+      {
+        "_path": "lib/python3.13/site-packages/_argon2_cffi_bindings/__pycache__/__init__.cpython-313.pyc",
+        "path_type": "hardlink",
+        "sha256": "665852d54c7bb7d529c4591edb05399992ee26c316034ec740cad47059fa9c06",
+        "sha256_in_prefix": "665852d54c7bb7d529c4591edb05399992ee26c316034ec740cad47059fa9c06",
+        "size_in_bytes": 248
+      },
+      {
+        "_path": "lib/python3.13/site-packages/_argon2_cffi_bindings/__pycache__/_ffi_build.cpython-313.pyc",
+        "path_type": "hardlink",
+        "sha256": "c195376d4ce9768ff8e03641a8f509257d600b3bfa05fc3f51942837824089a8",
+        "sha256_in_prefix": "c195376d4ce9768ff8e03641a8f509257d600b3bfa05fc3f51942837824089a8",
+        "size_in_bytes": 6898
+      },
+      {
+        "_path": "lib/python3.13/site-packages/_argon2_cffi_bindings/_ffi.abi3.so",
+        "path_type": "hardlink",
+        "sha256": "1b1cf9ac3b7c1e27faad0417bbb1d1ae894d471078f420d2f2ba1c60840ee96d",
+        "sha256_in_prefix": "1b1cf9ac3b7c1e27faad0417bbb1d1ae894d471078f420d2f2ba1c60840ee96d",
+        "size_in_bytes": 64728
+      },
+      {
+        "_path": "lib/python3.13/site-packages/_argon2_cffi_bindings/_ffi_build.py",
+        "path_type": "hardlink",
+        "sha256": "aa16541de11e8dfb13ab10e02709a6b6ba161b765c7d717fe482ad8073829cee",
+        "sha256_in_prefix": "aa16541de11e8dfb13ab10e02709a6b6ba161b765c7d717fe482ad8073829cee",
+        "size_in_bytes": 6289
+      },
+      {
+        "_path": "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/INSTALLER",
+        "path_type": "hardlink",
+        "sha256": "d0edee15f91b406f3f99726e44eb990be6e34fd0345b52b910c568e0eef6a2a8",
+        "sha256_in_prefix": "d0edee15f91b406f3f99726e44eb990be6e34fd0345b52b910c568e0eef6a2a8",
+        "size_in_bytes": 5
+      },
+      {
+        "_path": "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/METADATA",
+        "path_type": "hardlink",
+        "sha256": "2e8ecd88b836481ff2a0fcd3206ce14969689f1d382c5277ddd6d7240f129f0f",
+        "sha256_in_prefix": "2e8ecd88b836481ff2a0fcd3206ce14969689f1d382c5277ddd6d7240f129f0f",
+        "size_in_bytes": 7352
+      },
+      {
+        "_path": "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/RECORD",
+        "path_type": "hardlink",
+        "sha256": "46b0618d803e3a09b5816a9f4fb1426137c416b216abb5d491d76eb8f77cb8d5",
+        "sha256_in_prefix": "46b0618d803e3a09b5816a9f4fb1426137c416b216abb5d491d76eb8f77cb8d5",
+        "size_in_bytes": 1186
+      },
+      {
+        "_path": "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/REQUESTED",
+        "path_type": "hardlink",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "sha256_in_prefix": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_in_bytes": 0
+      },
+      {
+        "_path": "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/WHEEL",
+        "path_type": "hardlink",
+        "sha256": "6906c35aa95a6ab88f84f10d39ff732de00450ef653c75c86921518a03ad9fc1",
+        "sha256_in_prefix": "6906c35aa95a6ab88f84f10d39ff732de00450ef653c75c86921518a03ad9fc1",
+        "size_in_bytes": 103
+      },
+      {
+        "_path": "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/direct_url.json",
+        "path_type": "hardlink",
+        "sha256": "6f7d2677a4cef98b786109dfe4d3c353d233c6207007cc04ba7f207dd003ff75",
+        "sha256_in_prefix": "6f7d2677a4cef98b786109dfe4d3c353d233c6207007cc04ba7f207dd003ff75",
+        "size_in_bytes": 116
+      },
+      {
+        "_path": "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/licenses/LICENSE",
+        "path_type": "hardlink",
+        "sha256": "9c158d4f433627f48ac24b6b4d37970afe4172514673c5318014d7cca157c6df",
+        "sha256_in_prefix": "9c158d4f433627f48ac24b6b4d37970afe4172514673c5318014d7cca157c6df",
+        "size_in_bytes": 1082
+      },
+      {
+        "_path": "lib/python3.13/site-packages/argon2_cffi_bindings-25.1.0.dist-info/top_level.txt",
+        "path_type": "hardlink",
+        "sha256": "5b2449cf1bc8bf9f1ccaf4f27b602c573e742f0d210f151806e087d6b51bfed8",
+        "sha256_in_prefix": "5b2449cf1bc8bf9f1ccaf4f27b602c573e742f0d210f151806e087d6b51bfed8",
+        "size_in_bytes": 27
+      }
+    ],
+    "paths_version": 1
+  },
+  "requested_spec": "None",
+  "sha256": "ad188ccc06a06c633dc124b09e9e06fb9df4c32ffc38acc96ecc86e506062090",
+  "size": 35943,
+  "subdir": "linux-64",
+  "timestamp": 1762509452000,
+  "url": "https://conda.anaconda.org/conda-forge/linux-64/argon2-cffi-bindings-25.1.0-py313h07c4f96_2.conda",
+  "version": "25.1.0"
+}

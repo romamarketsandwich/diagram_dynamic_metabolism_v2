@@ -1,0 +1,12 @@
+prefix=/home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/.snakemake/conda/338324f50be2eb50257ef3425e9b95e6_
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libsodium
+Version: 1.0.20
+Description: A modern and easy-to-use crypto library
+
+Libs: -L${libdir} -lsodium
+Libs.private: -lpthread -pthread 
+Cflags: -I${includedir}

@@ -1,0 +1,34 @@
+{
+  "build": "h5f6438b_0",
+  "build_number": 0,
+  "channel": "https://conda.anaconda.org/conda-forge/noarch",
+  "constrains": [],
+  "depends": [
+    "tinycss2",
+    "bleach ==6.3.0 pyhcf101f3_0"
+  ],
+  "extracted_package_dir": "/home/wamesjang/anaconda3/pkgs/bleach-with-css-6.3.0-h5f6438b_0",
+  "files": [],
+  "fn": "bleach-with-css-6.3.0-h5f6438b_0.conda",
+  "license": "Apache-2.0 AND MIT",
+  "link": {
+    "source": "/home/wamesjang/anaconda3/pkgs/bleach-with-css-6.3.0-h5f6438b_0",
+    "type": 1
+  },
+  "md5": "08a03378bc5293c6f97637323802f480",
+  "name": "bleach-with-css",
+  "noarch": "generic",
+  "package_tarball_full_path": "/home/wamesjang/anaconda3/pkgs/bleach-with-css-6.3.0-h5f6438b_0",
+  "package_type": "noarch_generic",
+  "paths_data": {
+    "paths": [],
+    "paths_version": 1
+  },
+  "requested_spec": "None",
+  "sha256": "f85f6b2c7938d8c20c80ce5b7e6349fafbb49294641b5648273c5f892b150768",
+  "size": 4386,
+  "subdir": "noarch",
+  "timestamp": 1763589981000,
+  "url": "https://conda.anaconda.org/conda-forge/noarch/bleach-with-css-6.3.0-h5f6438b_0.conda",
+  "version": "6.3.0"
+}

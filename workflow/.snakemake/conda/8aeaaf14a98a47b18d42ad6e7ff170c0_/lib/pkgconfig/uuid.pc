@@ -1,0 +1,11 @@
+prefix=/home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/.snakemake/conda/8aeaaf14a98a47b18d42ad6e7ff170c0_
+exec_prefix=/home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/.snakemake/conda/8aeaaf14a98a47b18d42ad6e7ff170c0_
+libdir=/home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/.snakemake/conda/8aeaaf14a98a47b18d42ad6e7ff170c0_/lib
+includedir=/home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/.snakemake/conda/8aeaaf14a98a47b18d42ad6e7ff170c0_/include
+
+Name: uuid
+Description: Universally unique id library
+Version: 2.41.3
+Cflags: -I${includedir}/uuid
+Libs.private:  -lpthread
+Libs: -L${libdir} -luuid

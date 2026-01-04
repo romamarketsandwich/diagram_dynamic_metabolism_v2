@@ -1,0 +1,9 @@
+#!/bin/sh
+'''exec' /home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/.snakemake/conda/338324f50be2eb50257ef3425e9b95e6_/bin/python "$0" "$@"
+' '''
+import sys
+from nbclient.cli import main
+if __name__ == '__main__':
+    if sys.argv[0].endswith('.exe'):
+        sys.argv[0] = sys.argv[0][:-4]
+    sys.exit(main())

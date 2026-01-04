@@ -1,0 +1,11 @@
+#!/bin/sh
+'''exec' "/home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/.snakemake/conda/338324f50be2eb50257ef3425e9b95e6_/bin/python3.13" "$0" "$@" #'''
+# -*- coding: utf-8 -*-
+import re
+import sys
+
+from jupyter_client.kernelapp import main
+
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw?|\.exe)?$', '', sys.argv[0])
+    sys.exit(main())

@@ -1,0 +1,31 @@
+{
+  "build": "hdf11a46_16",
+  "build_number": 16,
+  "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+  "constrains": [],
+  "depends": [
+    "libstdcxx 15.2.0 h934c35e_16"
+  ],
+  "extracted_package_dir": "/home/wamesjang/anaconda3/pkgs/libstdcxx-ng-15.2.0-hdf11a46_16",
+  "files": [],
+  "fn": "libstdcxx-ng-15.2.0-hdf11a46_16.conda",
+  "license": "GPL-3.0-only WITH GCC-exception-3.1",
+  "link": {
+    "source": "/home/wamesjang/anaconda3/pkgs/libstdcxx-ng-15.2.0-hdf11a46_16",
+    "type": 1
+  },
+  "md5": "1b3152694d236cf233b76b8c56bf0eae",
+  "name": "libstdcxx-ng",
+  "package_tarball_full_path": "/home/wamesjang/anaconda3/pkgs/libstdcxx-ng-15.2.0-hdf11a46_16",
+  "paths_data": {
+    "paths": [],
+    "paths_version": 1
+  },
+  "requested_spec": "None",
+  "sha256": "81f2f246c7533b41c5e0c274172d607829019621c4a0823b5c0b4a8c7028ee84",
+  "size": 27300,
+  "subdir": "linux-64",
+  "timestamp": 1765256885000,
+  "url": "https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-15.2.0-hdf11a46_16.conda",
+  "version": "15.2.0"
+}
