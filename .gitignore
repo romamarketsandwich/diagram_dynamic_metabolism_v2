@@ -1,4 +1,5 @@
 workflow/.snakemake/
+.snakemake/
 lib/__pycache__/
 *.pkl
 *.npy
