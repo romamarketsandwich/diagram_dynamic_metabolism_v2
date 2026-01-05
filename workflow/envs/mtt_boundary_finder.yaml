@@ -9,3 +9,5 @@ dependencies:
   - matplotlib =3.9.2
   - numpy =2.2.0
   - scipy =1.14.1
+  - mpmath =1.3.0
+  - networkx =3.5

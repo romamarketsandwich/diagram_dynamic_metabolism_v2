@@ -1,10 +1,10 @@
 rule all:
     input:
-        "resources/figures/fig_1_layout.svg",
-        "resources/figures/fig_2a_steady_state.svg",
-        "resources/figures/fig_2b_heatmap.svg",
-        "resources/figures/fig_2c_fluxes.svg",
-        "resources/figures/fig_2d_parameter_sweep.svg",
+        "results/figures/fig_1_layout.svg",
+        "resources/subfigures/fig_2a_steady_state.svg",
+        "resources/subfigures/fig_2b_heatmap.svg",
+        "resources/subfigures/fig_2c_fluxes.svg",
+        "resources/subfigures/fig_2d_parameter_sweep.svg",
 rule fig_1_get_data_stoch:
     output:
         "resources/data/fig_1_example_data_stoch.tsv"
@@ -28,7 +28,7 @@ rule fig_1_plot_data:
         "resources/data/fig_1_example_data_stoch.tsv",
         "resources/data/fig_1_example_data_stereo.tsv",
     output:
-        "resources/figures/fig_1_layout.svg"
+        "results/figures/fig_1_layout.svg"
     conda:
         "envs/mpl_plotting.yaml"
     log:
@@ -48,7 +48,7 @@ rule fig_2a_steady_state:
     input:
         "resources/data/six_state_trees.pkl"
     output:
-        "resources/figures/fig_2a_steady_state.svg"
+        "resources/subfigures/fig_2a_steady_state.svg"
     conda:
         "envs/mtt_plot.yaml"
     log:
@@ -59,7 +59,7 @@ rule fig_2b_heatmap:
     input:
         "resources/data/six_state_trees.pkl"
     output:
-        "resources/figures/fig_2b_heatmap.svg"
+        "resources/subfigures/fig_2b_heatmap.svg"
     conda:
         "envs/mtt_plot.yaml"
     log:
@@ -70,7 +70,7 @@ rule fig_2c_fluxes:
     input:
         "resources/data/six_state_trees.pkl"
     output:
-        "resources/figures/fig_2c_fluxes.svg"
+        "resources/subfigures/fig_2c_fluxes.svg"
     conda:
         "envs/mtt_plot.yaml"
     log:
@@ -92,7 +92,7 @@ rule fig_2d_plot_parameter_sweep:
     input:
         "resources/data/fig_2d_get_data_parameter_sweep.pkl"
     output:
-        "resources/figures/fig_2d_parameter_sweep.svg"
+        "resources/subfigures/fig_2d_parameter_sweep.svg"
     conda:
         "envs/mpl_plotting.yaml"
     log:
