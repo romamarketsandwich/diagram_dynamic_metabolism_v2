@@ -1,0 +1,6 @@
+workflow/.snakemake/
+lib/__pycache__/
+*.pkl
+*.npy
+utilsGRF/__pycache__/
+*.attrs

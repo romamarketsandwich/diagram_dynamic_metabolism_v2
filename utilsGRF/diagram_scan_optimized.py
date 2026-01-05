@@ -384,20 +384,16 @@ print('calculated')
 # J_max_ss = J_turnover_total_list[idx]
 
 def rate_fn(param):
-    [alpha_41] = param
-    alpha_14 = alpha_41
-    gamma = 1e8
+    [alpha_41, alpha_14, amplitude] = param
+    # alpha_14 = alpha_41
+    # amplitude = 3
+    amplitude = np.log10(amplitude)
+    gamma = 1e5
     alpha_21 = 1
     alpha_32 = 1
-    # dG_1 = np.log10(dG_1)
-    # dG_2 = np.log10(dG_2)
-
-    amplitude = 3
-    # amplitude = 5
-    # alpha_14 = alpha_41
-    # print(amplitude, alpha_14, alpha_41)
-    dG_1 = 1
-    dG_2 = 1
+    
+    dG_1 = 2
+    dG_2 = 2
     # alpha_21 = 1
     # alpha_32 = 1
     k_bT = 1
@@ -434,7 +430,7 @@ def rate_fn(param):
     J_futile = np.abs(J_1) + np.abs(J_2) + np.abs(J_3) + np.abs(J_f1) + np.abs(J_f2) + np.abs(J_f3)
     # print(J_turnover_total / np.max(J_turnover_total_list), J_futile/J_turnover_total)
     # return J_turnover_total / np.max(J_turnover_total_list), J_futile/J_turnover_total
-    return np.log(alpha_41), J_futile/J_turnover_total
+    return J_turnover_total/J_max_ss, J_futile/J_turnover_total
 
 
 

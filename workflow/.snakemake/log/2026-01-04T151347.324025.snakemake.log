@@ -27,3 +27,21 @@ localrule fig_1_get_data:
 Activating conda environment: .snakemake/conda/8aeaaf14a98a47b18d42ad6e7ff170c0_
 Opening notebook for editing at localhost:8888
 Activating conda environment: .snakemake/conda/8aeaaf14a98a47b18d42ad6e7ff170c0_
+Saving modified notebook.
+Waiting at most 5 seconds for missing files:
+resources/data/fig_1_example_data.tsv (missing locally)
+MissingOutputException in rule fig_1_get_data in file "/home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/Snakefile", line 1:
+Job 0 completed successfully, but some output files are missing. Missing files after 5 seconds. This might be due to filesystem latency. If that is the case, consider to increase the wait time with --latency-wait:
+resources/data/fig_1_example_data.tsv (missing locally, parent dir contents: )
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look below for error messages
+[Sun Jan  4 15:29:58 2026]
+Error in rule fig_1_get_data:
+    message: None
+    jobid: 0
+    output: resources/data/fig_1_example_data.tsv
+    log: logs/get_fig_1_data.ipynb (check log file(s) for error details)
+    conda-env: /home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/.snakemake/conda/8aeaaf14a98a47b18d42ad6e7ff170c0_
+Complete log(s): /home/wamesjang/rockefeller/diagram_dynamic_metabolism_v2/workflow/.snakemake/log/2026-01-04T151347.324025.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.
