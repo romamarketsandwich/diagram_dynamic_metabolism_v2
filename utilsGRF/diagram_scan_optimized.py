@@ -427,10 +427,18 @@ def rate_fn(param):
     J_1, J_2, J_3, J_4, J_5, J_6, J_7, J_8, J_9, J_10, J_11, J_f1, J_f2, J_f3 = dynamic_steady_state_diagram(
         epsilon_1, epsilon_2, alpha_21, alpha_32, gamma, gamma, alpha_14, alpha_41, dG_1=dG_1, dG_2=dG_2, k_bT=1, spanTreesGraph=spanTreesGraph)
     J_turnover_total = np.abs(J_4) + np.abs(J_5) + np.abs(J_6) + np.abs(J_7) + np.abs(J_8) + np.abs(J_9) + np.abs(J_10) + np.abs(J_11)
-    J_futile = np.abs(J_1) + np.abs(J_2) + np.abs(J_3) + np.abs(J_f1) + np.abs(J_f2) + np.abs(J_f3)
+    # J_futile = 2 * np.abs(J_1) + 2 * np.abs(J_2) + 2 * np.abs(J_3) + 2 * np.abs(J_6) + 2 * np.abs(J_7) + 2 * np.abs(J_8) + 2 * np.abs(J_9) \
+    #     + 2 * np.abs(J_10) + 2 * np.abs(J_11)#+ np.abs(J_f1) + np.abs(J_f2) + np.abs(J_f3)
+    J_futile = np.abs(J_f1) + np.abs(J_f2) + np.abs(J_f3)
     # print(J_turnover_total / np.max(J_turnover_total_list), J_futile/J_turnover_total)
-    # return J_turnover_total / np.max(J_turnover_total_list), J_futile/J_turnover_total
-    return J_turnover_total/J_max_ss, J_futile/J_turnover_total
+    return J_turnover_total / J_max_ss, J_futile / J_turnover_total
+    # return J_turnover_total/J_max_ss, J_turnover_total/(J_turnover_total + J_futile)
+
+def epsilon_heat_engine(k_b, F, params):
+    epsilon_1, epsilon_2, alpha_21, alpha_32, gamma_1, gamma_2, dG_1, dG_2 = params
+    
+    dynamic_steady_state_diagram(epsilon_1, epsilon_2, alpha_21, alpha_32, gamma_1, gamma_2, alpha_14, alpha_41, dG_1=2, dG_2=2, k_bT=1, spanTreesGraph= None)
+    return epsilon_1 - epsilon_2
 
 
 
