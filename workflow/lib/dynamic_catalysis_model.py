@@ -4,7 +4,7 @@ import networkx as nx
 import copy
 from itertools import product
 
-def root_tree_weights(spanning_tree, weights, absorption_edge_1=None, absorption_edge_2=None, nodes=None):
+def root_tree_weights(spanning_tree, weights, absorption_edge_1=None, absorption_edge_2=None, nodes=None, allNodes=True):
     #assumes at least one valid root in the spanning tree implementing one-way fluxes. 
     if nodes is None:
         nodes = [n for n in spanning_tree]
@@ -21,6 +21,8 @@ def root_tree_weights(spanning_tree, weights, absorption_edge_1=None, absorption
         2. calculating "tail" tree weights, assuming root at one-way edge "tail".
         3. tree weight rooted at node i in "head" = "tail" tree weight * one-way edge weight * "head" tree weight .
         4. Sum all tree weights over all i in the "head".
+
+    allNodes is a boolean describing if wwe should get all valid roots of the tree (MTT) or just one node (cycle MTT).
     """
     spanning_tree = spanning_tree.copy()
     prefactor = 1
@@ -30,24 +32,24 @@ def root_tree_weights(spanning_tree, weights, absorption_edge_1=None, absorption
         reversed_absorption_edge_2 = absorption_edge_2[::-1]
     if (absorption_edge_1 in spanning_tree.edges or reversed_absorption_edge_1 in spanning_tree.edges) and (absorption_edge_2 in spanning_tree.edges or reversed_absorption_edge_2 in spanning_tree.edges):
         spanning_tree.remove_edges_from([absorption_edge_1, reversed_absorption_edge_1, absorption_edge_2, reversed_absorption_edge_2])
-        nodes1 = nx.node_connected_component(spanning_tree, absorption_edge_1[0])
-        nodes2 = nx.node_connected_component(spanning_tree, absorption_edge_1[0])
+        nodes1 = nx.node_connected_component(spanning_tree, absorption_edge_1[1])
+        nodes2 = nx.node_connected_component(spanning_tree, absorption_edge_2[1])
         if len(nodes1) > len(nodes2):
-            nodes = nodes2
+            nodes = nodes2 if allNodes else nodes
         else:
-            nodes = nodes1
-        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_1[1]]) * \
+            nodes = nodes1 if allNodes else nodes
+        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_1[0]]) * \
             weights.get(absorption_edge_1) * \
-            root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_2[1]]) * \
+            root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_2[0]]) * \
             weights.get(absorption_edge_2)
     elif absorption_edge_1 in spanning_tree.edges or reversed_absorption_edge_1 in spanning_tree.edges:
         spanning_tree.remove_edges_from([absorption_edge_1, reversed_absorption_edge_1])
-        nodes = nx.node_connected_component(spanning_tree, absorption_edge_1[0])
-        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_1[1]]) * weights.get(absorption_edge_1)
+        nodes = nx.node_connected_component(spanning_tree, absorption_edge_1[1]) if allNodes else nodes
+        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_1[0]]) * weights.get(absorption_edge_1)
     elif absorption_edge_2 in spanning_tree.edges or reversed_absorption_edge_2 in spanning_tree.edges:
         spanning_tree.remove_edges_from([absorption_edge_2, reversed_absorption_edge_2])
-        nodes = nx.node_connected_component(spanning_tree, absorption_edge_2[0])
-        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_2[1]]) * weights.get(absorption_edge_2)
+        nodes = nx.node_connected_component(spanning_tree, absorption_edge_2[1]) if allNodes else nodes
+        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_2[0]]) * weights.get(absorption_edge_2)
 
     total_weight = 0
     for root in sorted(nodes):
@@ -122,16 +124,16 @@ def contract_node(node_1, node_2, graph, graph_weights, absorption_edge_1, absor
     # finally, edges going from node_2 -> node_1 or vice versa are now irrelevant (in cycle coefficient)
     new_graph_weights = copy.deepcopy(graph_weights)
     for key in graph_weights:
-        #check for node_2 <-> node_1
+        #check for node_2 <-> node_1 -- this is part of the cycle.
         if key == (node_1, node_2) or key == (node_2, node_1):
             new_graph_weights.pop(key, None)
-        # check for outflow
+        # check for outflow -- no need to adjust weights here, since a valid spanning tree has no outflowing nodes from the root.
         elif key[0] == node_2:
-            new_graph_weights[(node_1, key[1])] = new_graph_weights[(node_1, key[1])] + graph_weights[key] if (node_1, key[1]) in new_graph_weights else graph_weights[key]
+            # new_graph_weights[(node_1, key[1])] = graph_weights[(node_1, key[1])] + graph_weights[key] if (node_1, key[1]) in graph_weights else graph_weights[key]
             new_graph_weights.pop(key, None)
         # check for inflow
         elif key[1] == node_2:
-            new_graph_weights[(key[0], node_1)] = new_graph_weights[(key[0], node_1)] + graph_weights[key] if (key[0], node_1) in new_graph_weights else graph_weights[key]
+            new_graph_weights[(key[0], node_1)] = graph_weights[(key[0], node_1)] + graph_weights[key] if (key[0], node_1) in graph_weights else graph_weights[key]
             new_graph_weights.pop(key, None)
 
     #verify that the index of the start or end of the absorption arrow hasn't changed, else change to node_1.
@@ -147,10 +149,10 @@ def contract_node(node_1, node_2, graph, graph_weights, absorption_edge_1, absor
 
     # finally, if we have contracted the graph such that an absorption arrow now has a reverse arrow, then it makes no sense to keep treating the absorption arrow like one.
     # we 'neuter' the absorption requirement by making it a self-directed edge.
-    if absorption_edge_1[::-1] in new_graph_weights.keys():
-        absorption_edge_1 = (absorption_edge_1[0], absorption_edge_1[0])
-    if absorption_edge_2[::-1] in new_graph_weights.keys():
-        absorption_edge_2 = (absorption_edge_2[0], absorption_edge_1[0])
+    # if absorption_edge_1[::-1] in new_graph_weights.keys():
+    #     absorption_edge_1 = (absorption_edge_1[0], absorption_edge_1[0])
+    # if absorption_edge_2[::-1] in new_graph_weights.keys():
+    #     absorption_edge_2 = (absorption_edge_2[0], absorption_edge_1[0])
 
     # print(set(graph_weights.keys()).difference(new_graph_weights.keys()))
     # print(set(new_graph_weights.keys()).difference(graph_weights.keys()))
@@ -217,8 +219,10 @@ def cycle_inflows(cycle, graph, graph_weights, absorption_edge_1=None, absorptio
     span_trees_graph = [g for g in span_trees_graph if type(g) != float]
     Sigma = 0
     for spanning_tree in span_trees_graph:
-        Sigma += root_tree_weights(spanning_tree, new_graph_weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[node_1])
+        # print(root_tree_weights(spanning_tree, new_graph_weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[node_1]))
+        Sigma += root_tree_weights(spanning_tree, new_graph_weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[node_1], allNodes=False)
     return Sigma
+    # return span_trees_graph
 
 def cycle_coefficient(cycle, graph_weights):
     '''
@@ -270,6 +274,12 @@ def max_rate_six_states(alpha_32, alpha_21, alpha_65, alpha_54,\
     + alpha_32 * (2 * mpmath.exp((dG_1 + dG_2) / (2 * k_bT)) + mpmath.sqrt((alpha_21 * (alpha_32 + gamma)) / (alpha_32 * gamma)) \
     + mpmath.exp((dG_1 + dG_2) / k_bT) * mpmath.sqrt((alpha_21 * (alpha_32 + gamma)) / (alpha_32 * gamma))))
 
+def osc_midpoint_six_states(alpha_32, alpha_21, alpha_65, alpha_54,\
+                        alpha_14, alpha_41, dG_1, dG_2,\
+                        gamma, epsilon_1, epsilon_2, k_bT):
+    return -1/2 * (-dG_1 + dG_2 - k_bT * mpmath.log((alpha_21 * alpha_32 + alpha_21 * gamma) / (alpha_32 * gamma)))
+
+
 def cycle_flux_six_states(turnover_cycles, futile_cycles, reaction_graph, absorption_edge_1=None, absorption_edge_2=None, **params ):
     '''
     calculate the cycle flux given two sets of biochemical cycles (called turnover_cycles, futile_cycles here).
@@ -285,7 +295,7 @@ def cycle_flux_six_states(turnover_cycles, futile_cycles, reaction_graph, absorp
     graph_weights = map_graph_weights_six_states(**params)
     max_steady_turnover = max_rate_six_states(**params)
     spanning_trees = generate_spanning_trees(reaction_graph, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2)
-    tree_weights = [root_tree_weights(spanning_trees[i], graph_weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=None) for i in range(len(spanning_trees))]
+    tree_weights = [root_tree_weights(spanning_trees[i], graph_weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=None, allNodes=True) for i in range(len(spanning_trees))]
     partition_function= np.sum(tree_weights) 
 
     turnover_flux = 0
@@ -296,8 +306,10 @@ def cycle_flux_six_states(turnover_cycles, futile_cycles, reaction_graph, absorp
     for cycle in futile_cycles:
         cycle_flux = (cycle_coefficient(cycle, graph_weights) * cycle_inflows(cycle, reaction_graph, graph_weights, absorption_edge_1, absorption_edge_2)) / partition_function
         futile_flux += cycle_flux
-    v_bar = turnover_flux / max_steady_turnover
-    q_bar = futile_flux / turnover_flux
+    # v_bar = turnover_flux / max_steady_turnover
+    v_bar = turnover_flux
+    # q_bar = futile_flux / turnover_flux
+    q_bar = futile_flux 
     return v_bar, q_bar
 
 def max_rate_eight_states(**params):
@@ -324,7 +336,7 @@ def cycle_flux_eight_states(turnover_cycles, futile_cycles, reaction_graph, abso
     graph_weights = map_graph_weights_eight_states(params)
     max_steady_turnover = max_rate_eight_states(params)
     spanning_trees = generate_spanning_trees(reaction_graph, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2)
-    partition_function = root_tree_weights(spanning_trees, graph_weights, absorption_edge_1, absorption_edge_2)
+    partition_function = root_tree_weights(spanning_trees, graph_weights, absorption_edge_1, absorption_edge_2, allNodes=True)
 
     turnover_flux = 0
     futile_flux = 0
@@ -336,217 +348,5 @@ def cycle_flux_eight_states(turnover_cycles, futile_cycles, reaction_graph, abso
         futile_flux += cycle_flux
     
     v_bar = turnover_flux / max_steady_turnover
-    # q_bar = futile_flux / turnover_flux
+    q_bar = futile_flux / turnover_flux
     return v_bar, q_bar
-    
-
-
-
-    
-    
-
-
-    
-
-
-def dynamic_steady_state_diagram(G, epsilon_1, epsilon_2, alpha_21, alpha_32, gamma_1, gamma_2, alpha_14, alpha_41, dG_1=2, dG_2=2, k_bT=1, ):
-    '''
-    Calculates the turnover rate for a 2-pathway, 6-state catalytic cycle with two
-    driven steps (at epsilon_1 and epsilon_2), each with its own driving force
-    (dG). Each driven step has its own "completion" rate (gamma_1 and gamma_2).
-    All other rate constants are set to 1, except for the reverses of the driven steps,
-    which are determined by detailed balance. Transitions between the two pathways are 
-    given by (alpha_14, alpha_41), which represent the relative timescales of breaking
-    steady-state.'''
-
-    epsilon_1, epsilon_2, alpha_21, alpha_32, gamma_1, gamma_2, alpha_14, alpha_41, dG_1, dG_2, k_bT = mpmath.mpf(epsilon_1), mpmath.mpf(epsilon_2), mpmath.mpf(alpha_21), mpmath.mpf(alpha_32), mpmath.mpf(gamma_1), mpmath.mpf(gamma_2), mpmath.mpf(alpha_14), mpmath.mpf(alpha_41), mpmath.mpf(dG_1), mpmath.mpf(dG_2), mpmath.mpf(k_bT)
-    
-    alpha_54 = alpha_21
-    alpha_65 = alpha_32
-
-    alpha_23 = alpha_32 * mpmath.exp((dG_2 - epsilon_1) / k_bT)
-    alpha_12 = alpha_21 * mpmath.exp((dG_1 + epsilon_1) / k_bT)
-
-    alpha_56 = alpha_65 * mpmath.exp((dG_2 - epsilon_2) / k_bT)
-    alpha_45 = alpha_54 * mpmath.exp((dG_1 + epsilon_2) / k_bT)
-
-
-
-    alpha_25 = alpha_14
-    alpha_52 = alpha_41
-    alpha_36 = alpha_14
-    alpha_63 = alpha_41
-
-    sigma_1 = alpha_63 * alpha_32 + alpha_36 * alpha_65 + alpha_36 * gamma_2 + \
-        alpha_63 * gamma_1 + gamma_1 * gamma_2 + alpha_65 * alpha_32 + \
-        alpha_32 * gamma_2 + alpha_65 * gamma_1
-    sigma_2 = alpha_41 * alpha_12 + alpha_14 * alpha_45 + alpha_12 * alpha_45
-    sigma_3 = 1
-    sigma_4 = alpha_14 * alpha_25 * alpha_36 + alpha_21 * alpha_14 * alpha_36 + \
-        alpha_14 * alpha_23 * alpha_36 + alpha_12 * alpha_23 * alpha_36 + \
-        alpha_32 * alpha_21 * alpha_14 + alpha_12 * alpha_32 * alpha_25 + \
-        gamma_1 * alpha_21 * alpha_14 + gamma_1 * alpha_12 * alpha_25 + \
-        gamma_1 * alpha_14 * alpha_25 + alpha_23 * gamma_1 * alpha_14 + \
-        alpha_12 * alpha_25 * alpha_36 + alpha_32 * alpha_25 * alpha_14
-    sigma_5 = alpha_41 * alpha_52 * alpha_63 + alpha_54 * alpha_41 * alpha_63 + \
-        alpha_41 * alpha_56 * alpha_63 + alpha_45 * alpha_56 * alpha_63 \
-        + alpha_45 * alpha_65 * alpha_52 + alpha_65 * alpha_54 * alpha_41 \
-        + gamma_2 * alpha_41 * alpha_54 + gamma_2 * alpha_45 * alpha_52 + \
-        gamma_2 * alpha_41 * alpha_52 + alpha_56 * gamma_2 * alpha_41 + \
-        alpha_45 * alpha_52 * alpha_63 + alpha_65 * alpha_52 * alpha_41
-    sigma_6 = alpha_25 + alpha_23 + alpha_21
-    sigma_7 = alpha_52 + alpha_56 + alpha_54
-    sigma_8 = alpha_36 + alpha_32 + gamma_1
-    sigma_9 = alpha_63 + alpha_65 + gamma_2
-    sigma_10 = alpha_45 + alpha_41
-    sigma_11 = alpha_14 + alpha_12
-
-    sigma_f1 = alpha_21 * alpha_54 * alpha_32 * alpha_63 \
-        + alpha_21 * alpha_32 * alpha_63 * alpha_56 \
-        + alpha_23 * alpha_36 * alpha_65 * alpha_54 \
-        + alpha_21 * alpha_36 * alpha_65 * alpha_54 \
-        + alpha_32 * alpha_21 * alpha_65 * alpha_54 \
-        + alpha_21 * alpha_52 * alpha_32 * alpha_63 \
-        + alpha_54 * alpha_25 * alpha_65 * alpha_36 \
-        + alpha_21 * alpha_52 * alpha_65 * alpha_36 \
-        + alpha_54 * alpha_25 * alpha_32 * alpha_63 \
-        + alpha_54 * alpha_25 * alpha_65 * alpha_32 \
-        + alpha_21 * alpha_32 * alpha_52 * alpha_65 \
-        + alpha_21 * alpha_54 * alpha_36 * gamma_2 \
-        + alpha_21 * alpha_54 * gamma_1 * alpha_63 \
-        + alpha_21 * alpha_54 * gamma_1 * gamma_2 \
-        + alpha_21 * alpha_54 * alpha_65 * gamma_1 \
-        + alpha_21 * alpha_54 * alpha_32 * gamma_2 \
-        + alpha_21 * alpha_52 * gamma_1 * gamma_2 \
-        + alpha_21 * alpha_52 * alpha_65 * gamma_1 \
-        + alpha_54 * alpha_25 * gamma_1 * gamma_2 \
-        + alpha_54 * alpha_25 * alpha_32 * gamma_2 \
-        + alpha_54 * alpha_25 * alpha_65 * gamma_1 \
-        + alpha_54 * alpha_25 * alpha_63 * gamma_1 \
-        + alpha_54 * alpha_25 * alpha_36 * gamma_2 \
-        + alpha_21 * alpha_52 * gamma_1 * alpha_63 \
-        + alpha_21 * alpha_52 * gamma_2 * alpha_36 \
-        + alpha_21 * alpha_52 * alpha_32 * gamma_2
-    
-    sigma_f2 = alpha_12 * alpha_32 * alpha_45 * alpha_65 \
-    + alpha_41 * alpha_12 * alpha_32 * alpha_65 \
-    + alpha_14 * alpha_45 * alpha_32 * alpha_65 \
-    + alpha_12 * alpha_45 * alpha_63 * alpha_32 \
-    + alpha_12 * alpha_45 * alpha_65 * alpha_36 \
-    + alpha_14 * alpha_45 * alpha_65 * alpha_36 \
-    + alpha_41 * alpha_12 * alpha_36 * alpha_65 \
-    + alpha_41 * alpha_12 * alpha_32 * alpha_63 \
-    + alpha_14 * alpha_45 * alpha_32 * alpha_63 \
-    + alpha_12 * alpha_45 * gamma_1 * gamma_2 \
-    + alpha_14 * alpha_45 * gamma_1 * gamma_2 \
-    + alpha_41 * alpha_12 * gamma_1 * gamma_2 \
-    + alpha_12 * alpha_45 * alpha_32 * gamma_2 \
-    + alpha_14 * alpha_45 * alpha_32 * gamma_2 \
-    + alpha_12 * alpha_32 * alpha_41 * gamma_2 \
-    + alpha_12 * alpha_45 * alpha_36 * gamma_2 \
-    + alpha_14 * alpha_45 * alpha_36 * gamma_2 \
-    + alpha_41 * alpha_12 * alpha_36 * gamma_2 \
-    + alpha_12 * alpha_45 * alpha_63 * gamma_1 \
-    + alpha_12 * alpha_41 * alpha_63 * gamma_1 \
-    + alpha_14 * alpha_45 * alpha_63 * gamma_1 \
-    + alpha_12 * alpha_45 * alpha_65 * gamma_1 \
-    + alpha_41 * alpha_12 * alpha_65 * gamma_1 \
-    + alpha_14 * alpha_45 * alpha_65 * gamma_1 
-
-    sigma_f3 = alpha_41 * alpha_12 * alpha_23 * alpha_56 \
-    + alpha_54 * alpha_41 * alpha_12 * alpha_23 \
-    + alpha_21 * alpha_14 * alpha_45 * alpha_56 \
-    + alpha_14 * alpha_45 * alpha_56 * alpha_23 \
-    + alpha_12 * alpha_23 * alpha_45 * alpha_56 \
-    + alpha_41 * alpha_12 * alpha_23 * alpha_52 \
-    + alpha_14 * alpha_45 * alpha_56 * alpha_25 \
-    + alpha_14 * alpha_45 * alpha_52 * alpha_23 \
-    + alpha_41 * alpha_12 * alpha_25 * alpha_56 \
-    + alpha_12 * alpha_25 * alpha_45 * alpha_56 \
-    + alpha_12 * alpha_23 * alpha_52 * alpha_45    
-
-    # 3 futile cycles (no conversion)
-
-    Pi_1_plus = alpha_14 * alpha_45 * alpha_52 * alpha_21
-    Pi_1_minus = alpha_41 * alpha_54 * alpha_25 * alpha_12
-
-    Pi_2_plus = alpha_25 * alpha_56 * alpha_63 * alpha_32
-    Pi_2_minus = alpha_52 * alpha_65 * alpha_36 * alpha_23
-
-    Pi_3_plus = alpha_14 * alpha_45 * alpha_56 * alpha_63 * alpha_32 * alpha_21
-    Pi_3_minus = alpha_41 * alpha_54 * alpha_65 * alpha_36 * alpha_23 * alpha_12
-
-    # completion at eps2, eps1
-
-    Pi_4_minus = alpha_45 * alpha_56 * gamma_2
-
-    Pi_5_plus = alpha_12 * alpha_23 * gamma_1
-
-    # completion at eps1, eps2, breaking steady-state, but no net benefit
-
-    Pi_6_plus = alpha_14 * alpha_45 * alpha_56 * alpha_63 * gamma_1
-
-    Pi_7_minus = alpha_41 * alpha_12 * alpha_23 * alpha_36 * gamma_2
-
-    # exactly what you don't want by breaking steady-state
-
-    Pi_8_minus = alpha_41 * alpha_12 * alpha_25 * alpha_56 * gamma_2
-
-    # exactly what you want by breaking steady-state
-
-    Pi_9_plus = alpha_14 * alpha_45 * alpha_52 * alpha_23 * gamma_1
-
-    # exactly what you don't want by breaking steady-state
-
-    Pi_10_plus = alpha_12 * alpha_25 * alpha_56 * alpha_63 * gamma_1
-
-    # exactly what you want by breaking steady-state
-
-    Pi_11_minus = alpha_45 * alpha_52 * alpha_23 * alpha_36 * gamma_2
-
-    # fluxes from i -> ii -> i
-    Pi_f1 = alpha_14 * alpha_41
-    Pi_f2 = alpha_25 * alpha_52
-    Pi_f3 = alpha_36 * alpha_63
-
-    J_1 = sigma_1 * (Pi_1_plus - Pi_1_minus)
-    J_2 = sigma_2 * (Pi_2_plus - Pi_2_minus)
-    J_3 = sigma_3 * (Pi_3_plus - Pi_3_minus) 
-    J_4 = sigma_4 * ( - Pi_4_minus) 
-    J_5 = sigma_5 * (Pi_5_plus) 
-    J_6 = sigma_6 * (Pi_6_plus)
-    J_7 = sigma_7 * ( - Pi_7_minus)
-    J_8 = sigma_8 * ( - Pi_8_minus)
-    J_9 = sigma_9 * (Pi_9_plus) 
-    J_10 = sigma_10 * (Pi_10_plus) 
-    J_11 = sigma_11 * ( - Pi_11_minus)
-    J_f1 = sigma_f1 * Pi_f1
-    J_f2 = sigma_f2 * Pi_f2
-    J_f3 = sigma_f3 * Pi_f3
-
-    # Calculation of partition function
-    spanTreesGraph = [i for i in nx.SpanningTreeIterator(G)]
-
-    weights = map_graph_weights_six_states(alpha_32=alpha_32, alpha_21=alpha_21, alpha_65=alpha_65, alpha_54=alpha_54, alpha_14=alpha_14, alpha_41=alpha_41, dG_1=dG_1, dG_2=dG_2, gamma=gamma_1, epsilon_1=epsilon_1, epsilon_2=epsilon_2, k_bT=k_bT)
-    tree_weights = [root_tree_weights(spanTreesGraph[i], weights, (2,0), (5,3), nodes=None) for i in range(len(spanTreesGraph))]
-    sigma = np.sum(tree_weights)   
-        
-    J_1 = J_1 / sigma
-    J_2 = J_2 / sigma
-    J_3 = J_3 / sigma
-    J_4 = J_4 / sigma
-    J_5 = J_5 / sigma
-    J_6 = J_6 / sigma
-    J_7 = J_7 / sigma
-
-    J_8 = J_8 / sigma
-    J_9 = J_9 / sigma
-    J_10 = J_10 / sigma
-    J_11 = J_11 / sigma
-    J_f1 = J_f1 / sigma
-    J_f2 = J_f2 / sigma
-    J_f3 = J_f3 / sigma
-
-    return np.abs(J_4) + np.abs(J_5) + np.abs(J_6) + np.abs(J_7) + np.abs(J_8) + np.abs(J_9) + np.abs(J_10) + np.abs(J_11)
-
-    return J_1, J_2, J_3, J_4, J_5, J_6, J_7, J_8, J_9, J_10, J_11, J_f1, J_f2, J_f3
