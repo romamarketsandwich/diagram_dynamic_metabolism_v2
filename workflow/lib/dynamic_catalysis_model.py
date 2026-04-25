@@ -38,19 +38,18 @@ def root_tree_weights(spanning_tree, weights, absorption_edge_1=None, absorption
             nodes = nodes2 if allNodes else nodes
         else:
             nodes = nodes1 if allNodes else nodes
-        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_1[0]]) * \
+        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_1[0]], allNodes=allNodes) * \
             weights.get(absorption_edge_1) * \
-            root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_2[0]]) * \
+            root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_2[0]], allNodes=allNodes) * \
             weights.get(absorption_edge_2)
     elif absorption_edge_1 in spanning_tree.edges or reversed_absorption_edge_1 in spanning_tree.edges:
         spanning_tree.remove_edges_from([absorption_edge_1, reversed_absorption_edge_1])
         nodes = nx.node_connected_component(spanning_tree, absorption_edge_1[1]) if allNodes else nodes
-        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_1[0]]) * weights.get(absorption_edge_1)
+        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_1[0]], allNodes=allNodes) * weights.get(absorption_edge_1)
     elif absorption_edge_2 in spanning_tree.edges or reversed_absorption_edge_2 in spanning_tree.edges:
         spanning_tree.remove_edges_from([absorption_edge_2, reversed_absorption_edge_2])
         nodes = nx.node_connected_component(spanning_tree, absorption_edge_2[1]) if allNodes else nodes
-        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_2[0]]) * weights.get(absorption_edge_2)
-
+        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_2[0]], allNodes=allNodes) * weights.get(absorption_edge_2)
     total_weight = 0
     for root in sorted(nodes):
         # Perform BFS to get the tree structure rooted at 'root'
@@ -68,7 +67,6 @@ def root_tree_weights(spanning_tree, weights, absorption_edge_1=None, absorption
         tree_weight = np.prod([weights.get((u, v)) for u, v in BFS_list]) * prefactor
         # Store or process the tree weight as needed
         total_weight += tree_weight
-
     return total_weight 
 
 def map_graph_weights_six_states(alpha_32, alpha_21, alpha_65, alpha_54,\
@@ -77,8 +75,7 @@ def map_graph_weights_six_states(alpha_32, alpha_21, alpha_65, alpha_54,\
     alpha_12 = alpha_21 * mpmath.exp((dG_1 + epsilon_1) / k_bT)
     alpha_23 = alpha_32 * mpmath.exp((dG_2 - epsilon_1)/ k_bT)
 
-    alpha_54 = alpha_21
-    alpha_65 = alpha_32
+
     alpha_45 = alpha_54 * mpmath.exp((dG_1 + epsilon_2) / k_bT)
     alpha_56 = alpha_65 * mpmath.exp((dG_2 - epsilon_2) / k_bT)
 
@@ -129,7 +126,7 @@ def contract_node(node_1, node_2, graph, graph_weights, absorption_edge_1, absor
             new_graph_weights.pop(key, None)
         # check for outflow -- no need to adjust weights here, since a valid spanning tree has no outflowing nodes from the root.
         elif key[0] == node_2:
-            # new_graph_weights[(node_1, key[1])] = graph_weights[(node_1, key[1])] + graph_weights[key] if (node_1, key[1]) in graph_weights else graph_weights[key]
+            new_graph_weights[(node_1, key[1])] = graph_weights[(node_1, key[1])] + graph_weights[key] if (node_1, key[1]) in graph_weights else graph_weights[key]
             new_graph_weights.pop(key, None)
         # check for inflow
         elif key[1] == node_2:
@@ -280,7 +277,7 @@ def osc_midpoint_six_states(alpha_32, alpha_21, alpha_65, alpha_54,\
     return -1/2 * (-dG_1 + dG_2 - k_bT * mpmath.log((alpha_21 * alpha_32 + alpha_21 * gamma) / (alpha_32 * gamma)))
 
 
-def cycle_flux_six_states(turnover_cycles, futile_cycles, reaction_graph, absorption_edge_1=None, absorption_edge_2=None, **params ):
+def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edge_1=None, absorption_edge_2=None, max_ss_rate_fn=None, weight_mapping_fn=None, **params):
     '''
     calculate the cycle flux given two sets of biochemical cycles (called turnover_cycles, futile_cycles here).
     The output (total flux attributable to turnover_cycles, total flux attributable to futile_cycles) will be used as input to BoundaryExplorer.
@@ -292,8 +289,8 @@ def cycle_flux_six_states(turnover_cycles, futile_cycles, reaction_graph, absorp
     absorption_edge_1: 2-tuple of the directed absorption edge representing turnover
     absorption_edge_2: 2-tuple of the other directed absorption edge representing turnover.
     '''
-    graph_weights = map_graph_weights_six_states(**params)
-    max_steady_turnover = max_rate_six_states(**params)
+    graph_weights = weight_mapping_fn(**params)
+    max_steady_turnover = max_ss_rate_fn(**params)
     spanning_trees = generate_spanning_trees(reaction_graph, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2)
     tree_weights = [root_tree_weights(spanning_trees[i], graph_weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=None, allNodes=True) for i in range(len(spanning_trees))]
     partition_function= np.sum(tree_weights) 
@@ -306,47 +303,115 @@ def cycle_flux_six_states(turnover_cycles, futile_cycles, reaction_graph, absorp
     for cycle in futile_cycles:
         cycle_flux = (cycle_coefficient(cycle, graph_weights) * cycle_inflows(cycle, reaction_graph, graph_weights, absorption_edge_1, absorption_edge_2)) / partition_function
         futile_flux += cycle_flux
-    # v_bar = turnover_flux / max_steady_turnover
-    v_bar = turnover_flux
-    # q_bar = futile_flux / turnover_flux
-    q_bar = futile_flux 
-    return v_bar, q_bar
-
-def max_rate_eight_states(**params):
-    '''
-    get the maximum rate at steady-state under the Sabatier principle, assuming an intermediate chemical reaction step. Expression derived in Mathematica.
-    '''
-    pass
-
-def map_graph_weights_eight_states(**params):
-    pass
-
-def cycle_flux_eight_states(turnover_cycles, futile_cycles, reaction_graph, absorption_edge_1=None, absorption_edge_2=None, **params ):
-    '''
-    calculate the cycle flux given two sets of biochemical cycles (called turnover_cycles, futile_cycles here).
-    The output (total flux attributable to turnover_cycles, total flux attributable to futile_cycles) will be used as input to BoundaryExplorer.
-    
-    turnover_cycles: list of list of nodes. each constituent list of nodes represents one biochemical cycle attributable to turnover.
-    futile_cycles: list of list of nodes. each constituent list of nodes represents one biochemical cycle attributable to futile cycling.
-    reaction_graph: the dynamic reaction network to be subjected to the cyclic MTT.
-    graph_weights: weights of reaction_graph (generated with map_graph_weights)
-    absorption_edge_1: 2-tuple of the directed absorption edge representing turnover
-    absorption_edge_2: 2-tuple of the other directed absorption edge representing turnover.
-    '''
-    graph_weights = map_graph_weights_eight_states(params)
-    max_steady_turnover = max_rate_eight_states(params)
-    spanning_trees = generate_spanning_trees(reaction_graph, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2)
-    partition_function = root_tree_weights(spanning_trees, graph_weights, absorption_edge_1, absorption_edge_2, allNodes=True)
-
-    turnover_flux = 0
-    futile_flux = 0
-    for cycle in turnover_cycles:
-        cycle_flux = (cycle_coefficient(cycle, graph_weights) * cycle_inflows(cycle, reaction_graph, graph_weights, absorption_edge_1, absorption_edge_2)) / partition_function
-        turnover_flux += cycle_flux
-    for cycle in futile_cycles:
-        cycle_flux = (cycle_coefficient(cycle, graph_weights) * cycle_inflows(cycle, reaction_graph, graph_weights, absorption_edge_1, absorption_edge_2)) / partition_function
-        futile_flux += cycle_flux
-    
     v_bar = turnover_flux / max_steady_turnover
     q_bar = futile_flux / turnover_flux
     return v_bar, q_bar
+
+
+def map_graph_weights_eight_states(alpha_32, alpha_21, alpha_43, alpha_65, alpha_76, alpha_87,\
+        alpha_15, alpha_51, dG_1, dG_2, dG_3,\
+        gamma, epsilon_1, epsilon_2, k_bT):
+    alpha_12 = alpha_21 * mpmath.exp((dG_1 + epsilon_1) / k_bT)
+    alpha_23 = alpha_32 * mpmath.exp((dG_2)/ k_bT)
+    alpha_34 = alpha_43 * mpmath.exp((dG_3 - epsilon_1)/ k_bT)
+
+
+    alpha_56 = alpha_65 * mpmath.exp((dG_1 + epsilon_2) / k_bT)
+    alpha_67 = alpha_76 * mpmath.exp((dG_2) / k_bT)
+    alpha_78 = alpha_87 * mpmath.exp((dG_2 - epsilon_2) / k_bT)
+
+
+
+    alpha_26 = alpha_15
+    alpha_62 = alpha_51
+    alpha_37 = alpha_15
+    alpha_73 = alpha_51
+    alpha_48 = alpha_15
+    alpha_84 = alpha_51
+
+    d = {        
+        (0, 1) : alpha_12,
+        (1, 0) : alpha_21,
+        (1, 2) : alpha_23,
+        (2, 1) : alpha_32,
+        (2, 3) : alpha_34,
+        (3, 2) : alpha_43,
+        (4, 5) : alpha_56,
+        (5, 4) : alpha_65,
+        (5, 6) : alpha_67,
+        (6, 5) : alpha_76,
+        (6, 7) : alpha_78,
+        (7, 6) : alpha_87,
+        (0, 4) : alpha_15,
+        (4, 0) : alpha_51,
+        (1, 5) : alpha_26,
+        (5, 1) : alpha_62,
+        (6, 2) : alpha_73,
+        (2, 6) : alpha_37,
+        (3, 7) : alpha_48,
+        (7, 3) : alpha_84,
+        (3, 0) : gamma,
+        (7, 4) : gamma,
+    }
+    return d
+
+
+def osc_midpoint_eight_states(alpha_32, alpha_21, alpha_43, dG_1, dG_2, dG_3, gamma, k_bT):
+    return 1/2 * (dG_1 - dG_3 + \
+                k_bT * np.log(-alpha_21 * alpha_32 * alpha_43 - \
+                alpha_21 * alpha_32  * alpha_43 * np.exp(dG_2/k_bT) -\
+                alpha_21  * alpha_32  * gamma - alpha_21 * alpha_32 * np.exp(dG_2/k_bT) * gamma)- \
+                k_bT * np.log(alpha_21 * alpha_43 * gamma + alpha_32 * alpha_43 *np.exp(dG_2/k_bT) * gamma))
+
+def max_rate_eight_states(alpha_32, alpha_21, alpha_43, alpha_65, alpha_54,\
+                        alpha_14, alpha_41, dG_1, dG_2,dG_3,\
+                        gamma, epsilon_1, epsilon_2, k_bT):
+    return (alpha_21 * alpha_32 * alpha_43 * np.exp((3 * dG_1 + 2 * dG_2 + 3 * dG_3)/(2 * k_bT)) *\
+    gamma * np.sqrt(alpha_43 * (alpha_21 + alpha_32 * np.exp(dG_2/k_bT)) * gamma) *\
+    np.sqrt(-alpha_21 * alpha_32 (1 + np.exp(dG_2/k_bT)) * \
+    (alpha_43 + gamma)))/(alpha_32**2 * alpha_43**2 * \
+    np.exp((2 * (dG_2 + dG_3))/k_bT) * gamma**2 - \
+    alpha_21**2 (-alpha_43**2 * np.exp((2 * dG_3)/k_bT) \
+    * gamma**2 + alpha_32**2 * np.exp((2 * dG_1)/k_bT)\
+    * (1 + np.exp(dG_2/k_bT))**2 * (alpha_43 + gamma)**2) \
+    + alpha_21 * np.exp(dG_3/(2 * k_bT)) * (alpha_43 * \
+    np.exp((3 * dG_1 + 2 * dG_3)/(2 * k_bT)) * gamma * \
+    np.sqrt(alpha_43 * (alpha_21 + alpha_32 *np.exp(dG_2/k_bT))\
+    * gamma) * np.sqrt(-alpha_21 * alpha_32 * (1 + np.exp(dG_2/k_bT)) \
+    * (alpha_43 + gamma)) + alpha_32 *  (2 * alpha_43**2 *np.exp((2 * dG_2 + 3 * dG_3)/(2 * k_bT)) \
+    * gamma**2 + alpha_43 *np.exp(dG_1/(2 * k_bT)) * (1 + np.exp((dG_1 + dG_2 + dG_3)/k_bT)) \
+    * np.sqrt(alpha_43 * (alpha_21 + alpha_32 *np.exp(dG_2/k_bT)) * gamma) * \
+    np.sqrt(-alpha_21 * alpha_32 * (1 + np.exp(dG_2/k_bT)) * (alpha_43 + gamma)) + \
+    np.exp(dG_1/(2 * k_bT)) * gamma * np.sqrt(alpha_43 * (alpha_21 + alpha_32 * \
+    np.exp(dG_2/k_bT)) * gamma) *np.sqrt(-alpha_21 * alpha_32 * (1 + np.exp(dG_2/k_bT)) * (alpha_43 + gamma)))))
+
+def generate_eight_state_graph():
+    G = nx.Graph()
+    G.add_nodes_from([3, 2, 1, 0, 4, 5, 6, 7])
+    G.add_edges_from([(0, 1), (1, 2), (2,3), (0,3), (4,5), (5,6), (6,7), (4,7), (0,4), (1,5), (2,6), (3,7)])
+    return G
+
+def generate_eight_state_fundamental_cycles():
+    t1 = [0,1,2,3]
+    t2 = [4,5,6,7]
+    t3 = [0,4,5,6,7,3]
+    t4 = [4,0,1,2,3,7]
+    t5 = [4,0,1,5,6,7]
+    t6 = [0,4,5,1,2,3]
+    t7 = [0,4,5,6,2,3]
+    t8 = [4,0,1,2,6,7]
+    t9 = [0,1,5,6,2,3]
+    t10 = [4,5,1,2,6,7]
+    t11 = [0,4,5,1,2,6,7,3]
+    t12 = [4,0,1,5,6,2,3,7]
+    t13 = [0,1,5,6,7,3]
+    t14 = [4,5,1,2,3,7]
+    t15 = [4,5,6,2,3,7]
+    t16 = [0,1,2,6,7,3]
+
+    tf1 = [0,4]
+    tf2 = [1,5]
+    tf3 = [2,6]
+    tf4 = [3,7]
+
+    return [t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16], [tf1,tf2,tf3,tf4]
