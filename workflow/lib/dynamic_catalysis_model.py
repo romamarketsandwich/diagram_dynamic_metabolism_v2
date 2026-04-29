@@ -321,7 +321,6 @@ def map_graph_weights_eight_states(alpha_32, alpha_21, alpha_43, alpha_65, alpha
     alpha_78 = alpha_87 * mpmath.exp((dG_2 - epsilon_2) / k_bT)
 
 
-
     alpha_26 = alpha_15
     alpha_62 = alpha_51
     alpha_37 = alpha_15
@@ -371,7 +370,7 @@ def max_rate_eight_states(alpha_32, alpha_21, alpha_43, alpha_65, alpha_54,\
     np.sqrt(-alpha_21 * alpha_32 (1 + np.exp(dG_2/k_bT)) * \
     (alpha_43 + gamma)))/(alpha_32**2 * alpha_43**2 * \
     np.exp((2 * (dG_2 + dG_3))/k_bT) * gamma**2 - \
-    alpha_21**2 (-alpha_43**2 * np.exp((2 * dG_3)/k_bT) \
+    alpha_21**2 * (-alpha_43**2 * np.exp((2 * dG_3)/k_bT) \
     * gamma**2 + alpha_32**2 * np.exp((2 * dG_1)/k_bT)\
     * (1 + np.exp(dG_2/k_bT))**2 * (alpha_43 + gamma)**2) \
     + alpha_21 * np.exp(dG_3/(2 * k_bT)) * (alpha_43 * \
