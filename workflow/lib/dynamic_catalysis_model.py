@@ -30,26 +30,27 @@ def root_tree_weights(spanning_tree, weights, absorption_edge_1=None, absorption
         reversed_absorption_edge_1 = absorption_edge_1[::-1]
     if absorption_edge_2 is not None:
         reversed_absorption_edge_2 = absorption_edge_2[::-1]
-    if (absorption_edge_1 in spanning_tree.edges or reversed_absorption_edge_1 in spanning_tree.edges) and (absorption_edge_2 in spanning_tree.edges or reversed_absorption_edge_2 in spanning_tree.edges):
-        spanning_tree.remove_edges_from([absorption_edge_1, reversed_absorption_edge_1, absorption_edge_2, reversed_absorption_edge_2])
-        nodes1 = nx.node_connected_component(spanning_tree, absorption_edge_1[1])
-        nodes2 = nx.node_connected_component(spanning_tree, absorption_edge_2[1])
-        if len(nodes1) > len(nodes2):
-            nodes = nodes2 if allNodes else nodes
-        else:
-            nodes = nodes1 if allNodes else nodes
-        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_1[0]], allNodes=allNodes) * \
-            weights.get(absorption_edge_1) * \
-            root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_2[0]], allNodes=allNodes) * \
-            weights.get(absorption_edge_2)
-    elif absorption_edge_1 in spanning_tree.edges or reversed_absorption_edge_1 in spanning_tree.edges:
-        spanning_tree.remove_edges_from([absorption_edge_1, reversed_absorption_edge_1])
-        nodes = nx.node_connected_component(spanning_tree, absorption_edge_1[1]) if allNodes else nodes
-        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_1[0]], allNodes=allNodes) * weights.get(absorption_edge_1)
-    elif absorption_edge_2 in spanning_tree.edges or reversed_absorption_edge_2 in spanning_tree.edges:
-        spanning_tree.remove_edges_from([absorption_edge_2, reversed_absorption_edge_2])
-        nodes = nx.node_connected_component(spanning_tree, absorption_edge_2[1]) if allNodes else nodes
-        prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_2[0]], allNodes=allNodes) * weights.get(absorption_edge_2)
+    if absorption_edge_1 is not None and absorption_edge_2 is not None:
+        if (absorption_edge_1 in spanning_tree.edges or reversed_absorption_edge_1 in spanning_tree.edges) and (absorption_edge_2 in spanning_tree.edges or reversed_absorption_edge_2 in spanning_tree.edges):
+            spanning_tree.remove_edges_from([absorption_edge_1, reversed_absorption_edge_1, absorption_edge_2, reversed_absorption_edge_2])
+            nodes1 = nx.node_connected_component(spanning_tree, absorption_edge_1[1])
+            nodes2 = nx.node_connected_component(spanning_tree, absorption_edge_2[1])
+            if len(nodes1) > len(nodes2):
+                nodes = nodes2 if allNodes else nodes
+            else:
+                nodes = nodes1 if allNodes else nodes
+            prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_1[0]], allNodes=allNodes) * \
+                weights.get(absorption_edge_1) * \
+                root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_2[0]], allNodes=allNodes) * \
+                weights.get(absorption_edge_2)
+        elif absorption_edge_1 in spanning_tree.edges or reversed_absorption_edge_1 in spanning_tree.edges:
+            spanning_tree.remove_edges_from([absorption_edge_1, reversed_absorption_edge_1])
+            nodes = nx.node_connected_component(spanning_tree, absorption_edge_1[1]) if allNodes else nodes
+            prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_1[0]], allNodes=allNodes) * weights.get(absorption_edge_1)
+        elif absorption_edge_2 in spanning_tree.edges or reversed_absorption_edge_2 in spanning_tree.edges:
+            spanning_tree.remove_edges_from([absorption_edge_2, reversed_absorption_edge_2])
+            nodes = nx.node_connected_component(spanning_tree, absorption_edge_2[1]) if allNodes else nodes
+            prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[absorption_edge_2[0]], allNodes=allNodes) * weights.get(absorption_edge_2)
     total_weight = 0
     for root in sorted(nodes):
         # Perform BFS to get the tree structure rooted at 'root'
@@ -135,14 +136,15 @@ def contract_node(node_1, node_2, graph, graph_weights, absorption_edge_1, absor
 
     #verify that the index of the start or end of the absorption arrow hasn't changed, else change to node_1.
     # of course, if the absorption arrow is a self-directed edge then nothing needs to be done, as our Markov Graph doesn't allow for self-directed edges.
-    if node_2 == absorption_edge_1[0]:
-        absorption_edge_1 = (node_1, absorption_edge_1[1])
-    if node_2 == absorption_edge_1[1]:
-        absorption_edge_1 = (absorption_edge_1[0], node_1)
-    if node_2 == absorption_edge_2[0]:
-        absorption_edge_2 = (node_1, absorption_edge_2[1])
-    if node_2 == absorption_edge_2[1]:
-        absorption_edge_2 = (absorption_edge_2[0], node_1)
+    if absorption_edge_1 is not None and absorption_edge_2 is not None:
+        if node_2 == absorption_edge_1[0]:
+            absorption_edge_1 = (node_1, absorption_edge_1[1])
+        if node_2 == absorption_edge_1[1]:
+            absorption_edge_1 = (absorption_edge_1[0], node_1)
+        if node_2 == absorption_edge_2[0]:
+            absorption_edge_2 = (node_1, absorption_edge_2[1])
+        if node_2 == absorption_edge_2[1]:
+            absorption_edge_2 = (absorption_edge_2[0], node_1)
 
     # finally, if we have contracted the graph such that an absorption arrow now has a reverse arrow, then it makes no sense to keep treating the absorption arrow like one.
     # we 'neuter' the absorption requirement by making it a self-directed edge.
@@ -153,6 +155,7 @@ def contract_node(node_1, node_2, graph, graph_weights, absorption_edge_1, absor
 
     # print(set(graph_weights.keys()).difference(new_graph_weights.keys()))
     # print(set(new_graph_weights.keys()).difference(graph_weights.keys()))
+
     return new_graph_weights, new_graph, absorption_edge_1, absorption_edge_2
 
 def is_valid_root(spanning_tree, root_node, absorption_edge_1, absorption_edge_2):
@@ -163,8 +166,14 @@ def is_valid_root(spanning_tree, root_node, absorption_edge_1, absorption_edge_2
     '''
     temp1 = copy.deepcopy(spanning_tree)
     temp2 = copy.deepcopy(spanning_tree)
-    reversed_absorption_edge_1 = absorption_edge_1[::-1]
-    reversed_absorption_edge_2 = absorption_edge_2[::-1]
+    reversed_absorption_edge_1 = None
+    reversed_absorption_edge_2 = None
+    if absorption_edge_1 is None and absorption_edge_2 is None:
+        return True
+    if absorption_edge_1 is not None:
+        reversed_absorption_edge_1 = absorption_edge_1[::-1]
+    if absorption_edge_2 is not None:
+        reversed_absorption_edge_2 = absorption_edge_2[::-1]
     # case 1: both absorption edges in tree, so verify that node_1 is in the intersection of (downstream tree of G - absorption edge 2) and (downstream tree of G - absorption edge 1)
     if absorption_edge_1 in temp1.edges and absorption_edge_2 in temp1.edges:
         temp1.remove_edges_from([absorption_edge_1, reversed_absorption_edge_1])
@@ -203,8 +212,9 @@ def cycle_inflows(cycle, graph, graph_weights, absorption_edge_1=None, absorptio
 
     new_graph = copy.deepcopy(graph)
     new_graph_weights = copy.deepcopy(graph_weights)
-    for i in range(1, len(cycle)):
-        new_graph_weights, new_graph, absorption_edge_1, absorption_edge_2 = contract_node(node_1, cycle[i], new_graph, new_graph_weights, absorption_edge_1, absorption_edge_2)
+    if node_1 != cycle[1]:
+        for i in range(1, len(cycle)):
+            new_graph_weights, new_graph, absorption_edge_1, absorption_edge_2 = contract_node(node_1, cycle[i], new_graph, new_graph_weights, absorption_edge_1, absorption_edge_2)
 
     # get spanning trees of new graph
     
