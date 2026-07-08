@@ -287,6 +287,8 @@ def osc_midpoint_six_states(alpha_32, alpha_21, alpha_65, alpha_54,\
     return -1/2 * (-dG_1 + dG_2 - k_bT * mpmath.log((alpha_21 * alpha_32 + alpha_21 * gamma) / (alpha_32 * gamma)))
 
 
+
+
 def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edge_1=None, absorption_edge_2=None, max_ss_rate_fn=None, weight_mapping_fn=None, **params):
     '''
     calculate the cycle flux given two sets of biochemical cycles (called turnover_cycles, futile_cycles here).
@@ -315,6 +317,7 @@ def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edg
         futile_flux += cycle_flux
     v_bar = turnover_flux / max_steady_turnover
     q_bar = futile_flux / turnover_flux
+    # q_bar = futile_flux / max_steady_turnover
     return v_bar, q_bar
 
 
