@@ -22,7 +22,7 @@ def root_tree_weights(spanning_tree, weights, absorption_edge_1=None, absorption
         3. tree weight rooted at node i in "head" = "tail" tree weight * one-way edge weight * "head" tree weight .
         4. Sum all tree weights over all i in the "head".
 
-    allNodes is a boolean describing if wwe should get all valid roots of the tree (MTT) or just one node (cycle MTT).
+    allNodes is a boolean describing if we should get all valid roots of the tree (MTT) or just one node (cycle MTT).
     """
     spanning_tree = spanning_tree.copy()
     prefactor = 1
@@ -367,6 +367,59 @@ def map_graph_weights_eight_states(alpha_32, alpha_21, alpha_43, alpha_65, alpha
     }
     return d
 
+def map_graph_weights_ten_states(alpha_32, alpha_21, alpha_43, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_43_w, alpha_54_w, alpha_65_w,\
+                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_4_w, gamma, epsilon_1, epsilon_2, k_bT):
+    alpha_12 = alpha_21 * mpmath.exp((dG_1 + epsilon_1) / k_bT)
+    alpha_23 = alpha_32 * mpmath.exp((dG_2 - epsilon_1)/ k_bT)
+    alpha_45 = alpha_54 * mpmath.exp((dG_1 + epsilon_2) / k_bT)
+    alpha_56 = alpha_65 * mpmath.exp((dG_2 - epsilon_2) / k_bT)
+    alpha_12_w = alpha_21_w * mpmath.exp((dG_1_w + epsilon_1) / k_bT)
+    alpha_23_w = alpha_32_w * mpmath.exp((dG_2_w - epsilon_1)/ k_bT)
+    alpha_45_w = alpha_54_w * mpmath.exp((dG_1_w + epsilon_2) / k_bT)
+    alpha_56_w = alpha_65_w * mpmath.exp((dG_2_w - epsilon_2) / k_bT)
+
+    alpha_25 = alpha_14
+    alpha_52 = alpha_41
+    alpha_36 = alpha_14
+    alpha_63 = alpha_41
+    alpha_25_w = alpha_14
+    alpha_52_w = alpha_41
+    alpha_36_w = alpha_14
+    alpha_63_w = alpha_41
+
+    d = {
+        (0, 1) : alpha_32_w,
+        (1, 0) : alpha_23_w,
+        (1, 2) : alpha_21_w,
+        (2, 1) : alpha_12_w,
+        (2, 3) : alpha_12,
+        (3, 2) : alpha_21,
+        (3, 4) : alpha_23,
+        (4, 3) : alpha_32,
+        (5, 6) : alpha_65_w,
+        (6, 5) : alpha_56_w,
+        (6, 7) : alpha_54_w,
+        (7, 6) : alpha_45_w,
+        (7, 8) : alpha_45,
+        (8, 7) : alpha_54,
+        (8, 9) : alpha_56,
+        (9, 8) : alpha_65,
+        (0, 5) : alpha_36_w,
+        (5, 0) : alpha_63_w,
+        (1, 6) : alpha_25_w,
+        (6, 1) : alpha_52_w,
+        (7, 2) : alpha_41,
+        (2, 7) : alpha_14,
+        (3, 8) : alpha_25,
+        (8, 3) : alpha_52,
+        (4, 9) : alpha_36,
+        (9, 4) : alpha_63,
+        (0, 2) : gamma,
+        (4, 2) : gamma,
+        (5, 7) : gamma,
+        (9, 7) : gamma,
+    }
+    return d
 
 def osc_midpoint_eight_states(alpha_32, alpha_21, alpha_43, dG_1, dG_2, dG_3, gamma, k_bT):
     return 1/2 * (dG_1 - dG_3 + \

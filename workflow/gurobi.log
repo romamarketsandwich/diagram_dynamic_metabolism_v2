@@ -1372,3 +1372,21 @@ Gurobi 11.0.3 (mac64[x86], gurobi_cl) logging started Wed Jun 24 14:53:33 2026
 Set parameter Username
 Set parameter LogFile to value "gurobi.log"
 Using license file /Users/jbwang/gurobi.lic
+
+Gurobi 11.0.3 (mac64[x86], gurobi_cl) logging started Thu Jul  9 14:56:27 2026
+
+Set parameter Username
+Set parameter LogFile to value "gurobi.log"
+Using license file /Users/jbwang/gurobi.lic
+
+Gurobi 11.0.3 (mac64[x86], gurobi_cl) logging started Thu Jul  9 14:57:38 2026
+
+Set parameter Username
+Set parameter LogFile to value "gurobi.log"
+Using license file /Users/jbwang/gurobi.lic
+
+Gurobi 11.0.3 (mac64[x86], gurobi_cl) logging started Thu Jul  9 14:59:06 2026
+
+Set parameter Username
+Set parameter LogFile to value "gurobi.log"
+Using license file /Users/jbwang/gurobi.lic
