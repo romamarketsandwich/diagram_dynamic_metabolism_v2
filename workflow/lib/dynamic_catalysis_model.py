@@ -194,16 +194,20 @@ def cycle_inflows(cycle, graph, graph_weights, absorption_edge_list=None):
 
     # get spanning trees of new graph
     
-    span_trees_graph = [i for i in nx.SpanningTreeIterator(new_graph)]
+    # span_trees_graph = [i for i in nx.SpanningTreeIterator(new_graph)]
     # check if node_1 is a valid root of each spanning tree, if not then exclude that spanning tree.
-    for index, tree in enumerate(span_trees_graph):
-        if not is_valid_root(tree, node_1, absorption_edge_list=absorption_edge_list):
-            span_trees_graph[index] = np.nan
-    span_trees_graph = [g for g in span_trees_graph if type(g) != float]
-    Sigma = 0
-    for spanning_tree in span_trees_graph:
-        # print(root_tree_weights(spanning_tree, new_graph_weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[node_1]))
-        Sigma += root_tree_weights(spanning_tree, new_graph_weights, absorption_edge_list=absorption_edge_list, nodes=[node_1], allNodes=False)
+    # for index, tree in enumerate(span_trees_graph):
+    #     if not is_valid_root(tree, node_1, absorption_edge_list=absorption_edge_list):
+    #         span_trees_graph[index] = np.nan
+    # span_trees_graph = [g for g in span_trees_graph if type(g) != float]
+    # Sigma = 0
+    # for spanning_tree in span_trees_graph:
+    #     # print(root_tree_weights(spanning_tree, new_graph_weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[node_1]))
+    #     Sigma += root_tree_weights(spanning_tree, new_graph_weights, absorption_edge_list=absorption_edge_list, nodes=[node_1], allNodes=False)
+    G = nx.DiGraph()
+    for (u,v), attrs in new_graph_weights.items():
+        G.add_edge(u, v, weight=np.float64(attrs))
+    Sigma = nx.number_of_spanning_trees(G.reverse(copy=False), weight='weight', root=node_1)
     return Sigma
     # return span_trees_graph
 
@@ -278,9 +282,12 @@ def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edg
     '''
     graph_weights = weight_mapping_fn(**params)
     max_steady_turnover = max_ss_rate_fn(**params)
-    spanning_trees = generate_spanning_trees(reaction_graph, absorption_edge_list=absorption_edge_list)
-    tree_weights = [root_tree_weights(spanning_trees[i], graph_weights, absorption_edge_list=absorption_edge_list, nodes=None, allNodes=True) for i in range(len(spanning_trees))]
-    partition_function= np.sum(tree_weights) 
+    # spanning_trees = generate_spanning_trees(reaction_graph, absorption_edge_list=absorption_edge_list)
+    # tree_weights = [root_tree_weights(spanning_trees[i], graph_weights, absorption_edge_list=absorption_edge_list, nodes=None, allNodes=True) for i in range(len(spanning_trees))]
+    G = nx.DiGraph()
+    for (u,v), attrs in graph_weights.items():
+        G.add_edge(u, v, weight=np.float64(attrs))
+    partition_function= np.sum([nx.number_of_spanning_trees(G.reverse(copy=False), weight='weight', root=root) for root in G.nodes()]) 
 
     turnover_flux = 0
     futile_flux = 0
@@ -291,7 +298,7 @@ def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edg
         cycle_flux = (cycle_coefficient(cycle, graph_weights) * cycle_inflows(cycle, reaction_graph, graph_weights, absorption_edge_list=absorption_edge_list)) / partition_function
         futile_flux += cycle_flux
     v_bar = turnover_flux / max_steady_turnover
-    q_bar = futile_flux / turnover_flux
+    q_bar = futile_flux / (futile_flux + turnover_flux)
     # q_bar = futile_flux / max_steady_turnover
     return v_bar, q_bar
 

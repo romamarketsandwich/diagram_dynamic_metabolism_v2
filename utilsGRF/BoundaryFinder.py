@@ -808,7 +808,7 @@ class BoundaryExplorer():
 
             
             if np.any(np.abs(pars-parset)>self.tol_difference_pars):#if at least one parameter is different
-        
+                    
                 p,s=self.compute_x_y(pars)
                 #p,s=compute_pos_s_inputoutput(self.xrange,pars,self.ssfunc)
 
