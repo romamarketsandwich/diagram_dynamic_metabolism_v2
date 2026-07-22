@@ -298,7 +298,7 @@ def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edg
         cycle_flux = (cycle_coefficient(cycle, graph_weights) * cycle_inflows(cycle, reaction_graph, graph_weights, absorption_edge_list=absorption_edge_list)) / partition_function
         futile_flux += cycle_flux
     v_bar = turnover_flux / max_steady_turnover
-    q_bar = futile_flux / (futile_flux + turnover_flux)
+    q_bar = turnover_flux / (futile_flux)
     # q_bar = futile_flux / max_steady_turnover
     return v_bar, q_bar
 
@@ -306,14 +306,14 @@ def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edg
 def map_graph_weights_eight_states(alpha_32, alpha_21, alpha_43, alpha_65, alpha_76, alpha_87,\
         alpha_15, alpha_51, dG_1, dG_2, dG_3,\
         gamma, epsilon_1, epsilon_2, k_bT):
-    alpha_12 = alpha_21 * mpmath.exp((dG_1 + epsilon_1) / k_bT)
-    alpha_23 = alpha_32 * mpmath.exp((dG_2)/ k_bT)
-    alpha_34 = alpha_43 * mpmath.exp((dG_3 - epsilon_1)/ k_bT)
+    alpha_12 = alpha_21 * np.exp((dG_1 + epsilon_1) / k_bT)
+    alpha_23 = alpha_32 * np.exp((dG_2)/ k_bT)
+    alpha_34 = alpha_43 * np.exp((dG_3 - epsilon_1)/ k_bT)
 
 
-    alpha_56 = alpha_65 * mpmath.exp((dG_1 + epsilon_2) / k_bT)
-    alpha_67 = alpha_76 * mpmath.exp((dG_2) / k_bT)
-    alpha_78 = alpha_87 * mpmath.exp((dG_2 - epsilon_2) / k_bT)
+    alpha_56 = alpha_65 * np.exp((dG_1 + epsilon_2) / k_bT)
+    alpha_67 = alpha_76 * np.exp((dG_2) / k_bT)
+    alpha_78 = alpha_87 * np.exp((dG_2 - epsilon_2) / k_bT)
 
 
     alpha_26 = alpha_15
@@ -351,14 +351,14 @@ def map_graph_weights_eight_states(alpha_32, alpha_21, alpha_43, alpha_65, alpha
 
 def map_graph_weights_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_54_w, alpha_65_w,\
                                  alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, gamma, epsilon_1, epsilon_2, k_bT):
-    alpha_12 = alpha_21 * mpmath.exp((dG_1 + epsilon_1) / k_bT)
-    alpha_23 = alpha_32 * mpmath.exp((dG_2 - epsilon_1)/ k_bT)
-    alpha_45 = alpha_54 * mpmath.exp((dG_1 + epsilon_2) / k_bT)
-    alpha_56 = alpha_65 * mpmath.exp((dG_2 - epsilon_2) / k_bT)
-    alpha_12_w = alpha_21_w * mpmath.exp((dG_1_w + epsilon_1) / k_bT)
-    alpha_23_w = alpha_32_w * mpmath.exp((dG_2_w - epsilon_1)/ k_bT)
-    alpha_45_w = alpha_54_w * mpmath.exp((dG_1_w + epsilon_2) / k_bT)
-    alpha_56_w = alpha_65_w * mpmath.exp((dG_2_w - epsilon_2) / k_bT)
+    alpha_12 = alpha_21 * np.exp((dG_1 + epsilon_1) / k_bT)
+    alpha_23 = alpha_32 * np.exp((dG_2 - epsilon_1)/ k_bT)
+    alpha_45 = alpha_54 * np.exp((dG_1 + epsilon_2) / k_bT)
+    alpha_56 = alpha_65 * np.exp((dG_2 - epsilon_2) / k_bT)
+    alpha_12_w = alpha_21_w * np.exp((dG_1_w + epsilon_1) / k_bT)
+    alpha_23_w = alpha_32_w * np.exp((dG_2_w - epsilon_1)/ k_bT)
+    alpha_45_w = alpha_54_w * np.exp((dG_1_w + epsilon_2) / k_bT)
+    alpha_56_w = alpha_65_w * np.exp((dG_2_w - epsilon_2) / k_bT)
 
     alpha_25 = alpha_14
     alpha_52 = alpha_41
