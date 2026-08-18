@@ -298,8 +298,8 @@ def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edg
         cycle_flux = (cycle_coefficient(cycle, graph_weights) * cycle_inflows(cycle, reaction_graph, graph_weights, absorption_edge_list=absorption_edge_list)) / partition_function
         futile_flux += cycle_flux
     v_bar = turnover_flux / max_steady_turnover
-    q_bar = turnover_flux / (futile_flux)
-    # q_bar = futile_flux / max_steady_turnover
+    # q_bar = turnover_flux / (futile_flux)
+    q_bar = futile_flux / turnover_flux
     return v_bar, q_bar
 
 
