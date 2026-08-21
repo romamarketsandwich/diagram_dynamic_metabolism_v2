@@ -3,6 +3,9 @@ import mpmath
 import networkx as nx
 import copy
 from itertools import product
+from utilsGRF import BoundaryFinder as BF
+import json
+import os
 
 def root_tree_weights(spanning_tree, weights, absorption_edge_list=None, nodes=None, allNodes=True):
     #assumes at least one valid root in the spanning tree implementing one-way fluxes. 
@@ -289,17 +292,18 @@ def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edg
         G.add_edge(u, v, weight=np.float64(attrs))
     partition_function= np.sum([nx.number_of_spanning_trees(G.reverse(copy=False), weight='weight', root=root) for root in G.nodes()]) 
 
-    turnover_flux = 0
-    futile_flux = 0
-    for cycle in turnover_cycles:
+    turnover_flux_ls = np.zeros(len(turnover_cycles))
+    futile_flux_ls = np.zeros(len(futile_cycles))
+
+    for i, cycle in enumerate(turnover_cycles):
         cycle_flux = (cycle_coefficient(cycle, graph_weights) * cycle_inflows(cycle, reaction_graph, graph_weights, absorption_edge_list=absorption_edge_list)) / partition_function
-        turnover_flux += cycle_flux
-    for cycle in futile_cycles:
+        turnover_flux_ls[i] = cycle_flux
+    for i, cycle in enumerate(futile_cycles):
         cycle_flux = (cycle_coefficient(cycle, graph_weights) * cycle_inflows(cycle, reaction_graph, graph_weights, absorption_edge_list=absorption_edge_list)) / partition_function
-        futile_flux += cycle_flux
-    v_bar = turnover_flux / max_steady_turnover
+        futile_flux_ls[i] = cycle_flux
+    v_bar = np.sum(turnover_flux_ls) / max_steady_turnover
     # q_bar = turnover_flux / (futile_flux)
-    q_bar = futile_flux / turnover_flux
+    q_bar = np.sum(futile_flux_ls) / np.sum(turnover_flux_ls)
     return v_bar, q_bar
 
 
@@ -462,3 +466,180 @@ def generate_eight_state_fundamental_cycles():
     tf4 = [3,7]
 
     return [t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16], [tf1,tf2,tf3,tf4]
+
+def run_dycat_model_10_state_3_param_rate_fn(*params):
+    alpha_14, alpha_41, epsilon_1= params[0]
+    epsilon_1 = np.log10(epsilon_1)
+    oscMidpoint = osc_midpoint_six_states(**hyperparams)
+    return cycle_flux_fn(cycles_1, cycles_2, G, absorption_arrow_list, max_ss_rate_fn=get_best_steady_state, weight_mapping_fn=map_graph_weights_ten_states, alpha_32=alpha_32, \
+                                                alpha_21=alpha_21, alpha_54=alpha_54, alpha_65=alpha_65,\
+                                                alpha_21_w=alpha_21, alpha_32_w=alpha_32, alpha_54_w=alpha_54, alpha_65_w=alpha_65, dG_1=dG_1, dG_2=dG_2, dG_1_w = dG_1_w, dG_2_w = dG_2_w, \
+                                                gamma=gamma, epsilon_1=epsilon_1, epsilon_2=epsilon_2, k_bT=k_bT, alpha_14=alpha_14, alpha_41=alpha_41)
+
+def run_dycat_model(config_file_path, rate_fn, graph_fn, weight_fn, ss_fn, **kwargs):
+    '''
+    Run the dynamic catalysis model using the specified configuration file, rate function, and default arguments.
+    This function initializes the BoundaryExplorer with the provided settings, computes initial points, and extends the boundary based on the specified number of iterations. The results' matrix parameters and sub-cycle fluxes, are saved in the designated output folder.
+    Parameters:
+    config_file_path (str): The path to the configuration file.
+    rate_fn (callable): The rate function to use.
+    defaultargs (dict): The default arguments for the model.
+    '''
+    
+
+    simulation_settings = json.load(config_file_path).item()
+    outfolder = simulation_settings['folder_save']
+    outfolder_final = outfolder
+    name_save = simulation_settings['name_save']
+    name='%s_last'%(name_save)
+
+    minp = simulation_settings['pars_limit_min']
+    maxp = simulation_settings['pars_limit_max']
+    stp_min = simulation_settings['row_ar_min']
+    stp_max = simulation_settings['row_ar_max']
+    pos_min = simulation_settings['col_ar_min']
+    pos_max = simulation_settings['col_ar_max']
+    n_grid = simulation_settings['n_grid']
+    seed = simulation_settings['seed']
+    mat = simulation_settings['mat']
+    mat_pars = simulation_settings['mat_pars']
+
+    niters = simulation_settings['niters']
+    npars = simulation_settings['npars']
+    niters_conv_points = simulation_settings['niters_conv_points']
+    niters_save = simulation_settings['niters_save']
+    prob_par = simulation_settings['prob_par']
+    prob_replace = simulation_settings['prob_replace']
+    extr_uniform = simulation_settings['extr_uniform']
+    L_project = simulation_settings['L_project']
+    plotting = simulation_settings['plotting']
+    verbose = simulation_settings['verbose']
+    dofirstmutate = simulation_settings['dofirstmutate']
+    dopullcentroids = simulation_settings['dopullcentroids']
+    dopulltangents = simulation_settings['dopulltangents']
+    cycles_1 = simulation_settings['cycles_1']
+    cycles_2 = simulation_settings['cycles_2']
+
+
+    stp_ar = np.linspace(stp_min,stp_max,n_grid)
+    pos_ar = np.linspace(pos_min,pos_max,n_grid)
+
+    G = graph_fn()
+
+
+    defaultsettings={'pars_limit':[minp,maxp],
+           'row_ar':stp_ar,
+          'col_ar':pos_ar,
+          'seed':seed,
+         'mat':mat,
+         'mat_pars':mat_pars}
+
+    defaultargs={'niters':niters,
+        'niters_conv':niters_conv_points,
+        'niters_conv_points':niters_conv_points,
+        'niters_save':niters_save,
+        'prob_par':prob_par,
+        'prob_replace':prob_replace,
+        'extr_uniform':extr_uniform,
+        'L_project':L_project,
+        'plotting':plotting,
+        'verbose':verbose,
+        'dofirstmutate':dofirstmutate,
+        'dopullcentroids':dopullcentroids,
+        'dopulltangents':dopulltangents} 
+
+
+    if not os.path.isdir(outfolder):
+        os.mkdir(outfolder)
+
+
+    settings=defaultsettings.copy()
+
+    settings['compute_x_y_f']=make_rate_fn({
+        "cycles_1": cycles_1,
+        "cycles_2": cycles_2,
+        "reaction_graph": G,
+        "absorption_edge_list": absorption_edge_list,
+        "max_ss_rate_fn": max_ss_rate_fn,
+        "weight_mapping_fn": weight_mapping_fn,
+        "osc_midpoint_fn": osc_midpoint_fn,
+        alpha_32": alpha_32,
+        "alpha_21": alpha_21,
+        "alpha_54": alpha_54,
+        "alpha_65": alpha_65,
+        "alpha_21_w": alpha_21,
+        "alpha_32_w": alpha_32,
+        "alpha_54_w": alpha_54,
+        "alpha_65_w": alpha_65,
+        "dG_1": dG_1,
+        "dG_2": dG_2,
+        "dG_1_w": dG_1_w,
+        "dG_2_w": dG_2_w,
+        "gamma": gamma,
+        "epsilon_1": epsilon_1,
+        "epsilon_2": epsilon_2,
+        "k_bT": k_bT
+        
+    })
+    settings['npars']=npars
+
+    #Initialise and get first 10 points
+
+    BE=BF.BoundaryExplorer(**settings)
+    BE.get_initial_points(10)
+
+    #Extend boundary
+    args=defaultargs.copy()
+    BE.extend_boundary(**args)
+    np.save(os.path.join(outfolder_final,'mat_'+name+'.npy'),BE.mat)
+    np.save(os.path.join(outfolder_final,'mat_pars_'+name+'.npy'),BE.mat_pars)
+    with open(os.path.join(outfolder_final, os.path.basename(os.path.normpath(outfolder_final))), 'w') as f:
+        json.dump(simulation_settings, f)
+
+    # get sub-cycle fluxes
+    cycles = cycles_1 + cycles_2
+    sub_cycle_fluxes = np.zeros((len(cycles), BE.mat.shape[0] + BE.mat.shape[1]))
+    for i in range(BE.mat.shape[0]):
+        for j in range(BE.mat.shape[1]):
+            for k in cycles:
+                params = [BE.mat_pars[key][i, j] for key in BE.mat_pars]
+                amplitude = params[0]
+                amplitude = np.log10(amplitude)
+                oscMidpoint = hyperparams["osc_midpoint_fn"](**hyperparams)
+                epsilon_1 = oscMidpoint + amplitude
+                epsilon_2 = oscMidpoint - amplitude
+                v_bar, q_bar = cycle_flux_fn([k], None, G, absorption_edge_list=absorption_edge_list, max_ss_rate_fn=max_ss_rate_fn, weight_mapping_fn=weight_mapping_fn, **dict(zip(BE.mat_pars.keys(), params)))
+                sub_cycle_fluxes[k, i+j] = v_bar
+    np.save(os.path.join(outfolder_final, 'sub_cycle_fluxes_'+name+'.npy'), sub_cycle_fluxes)
+
+def make_rate_fn_3_params(hyperparams):
+    def rate_fn(params):
+        if len(params) == 3:
+            alpha_14, alpha_41, amplitude = params[0]
+            amplitude = np.log10(amplitude)
+            oscMidpoint = hyperparams["osc_midpoint_fn"](**hyperparams)
+            epsilon_1 = oscMidpoint + amplitude
+            epsilon_2 = oscMidpoint - amplitude
+        elif len(params) == 4:
+            alpha_14, alpha_41, epsilon_1, epsilon_2 = params[0]
+        else:
+            raise ValueError("params must be a list of length 3 or 4")
+        
+        return cycle_flux_fn(
+            hyperparams["cycles_1"],
+            hyperparams["cycles_2"],
+            hyperparams["reaction_graph"],
+            absorption_edge_list=hyperparams["absorption_edge_list"],
+            max_ss_rate_fn=hyperparams["max_ss_rate_fn"],
+            weight_mapping_fn=hyperparams["weight_mapping_fn"],
+            alpha_14=alpha_14,
+            alpha_41=alpha_41,
+            alpha_32=hyperparams["alpha_32"],
+            alpha_21=hyperparams["alpha_21"], 
+            alpha_54=hyperparams["alpha_54"], 
+            alpha_65=hyperparams["alpha_65"],\
+            alpha_21_w=hyperparams["alpha_21_w"], alpha_32_w=hyperparams["alpha_32_w"], alpha_54_w=hyperparams["alpha_54_w"], alpha_65_w=hyperparams["alpha_65_w"],
+            gamma=hyperparams["gamma"], epsilon_1=hyperparams["epsilon_1"], epsilon_2=hyperparams["epsilon_2"], k_bT=hyperparams["k_bT"]
+        )
+
+return rate_fn

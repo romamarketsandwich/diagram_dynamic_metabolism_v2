@@ -297,3 +297,7 @@ def dynamic_steady_state_diagram(epsilon_1, epsilon_2, alpha_21, alpha_32, gamma
     J_f3 = J_f3 / sigma
 
     return J_1, J_2, J_3, J_4, J_5, J_6, J_7, J_8, J_9, J_10, J_11, J_f1, J_f2, J_f3
+
+
+def run_dycat_model():
+    pass
