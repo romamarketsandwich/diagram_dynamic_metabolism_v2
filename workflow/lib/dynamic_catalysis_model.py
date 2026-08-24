@@ -7,6 +7,7 @@ from utilsGRF import BoundaryFinder as BF
 import json
 import sys
 import importlib
+import datetime
 import os
 
 def root_tree_weights(spanning_tree, weights, absorption_edge_list=None, nodes=None, allNodes=True):
@@ -220,9 +221,8 @@ def generate_spanning_trees(graph, absorption_edge_list=None):
             span_trees_graph[tree_index] = np.nan
     return [g for g in span_trees_graph if type(g) != float]
 
-def max_rate_six_states(alpha_32, alpha_21, alpha_65, alpha_54,\
-                        alpha_14, alpha_41, dG_1, dG_2,\
-                        gamma, epsilon_1, epsilon_2, k_bT, **params):
+def max_rate_six_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
+                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
     '''
     get the maximum rate at steady-state under the Sabatier principle. Expression derived in Mathematica.
     '''
@@ -231,9 +231,8 @@ def max_rate_six_states(alpha_32, alpha_21, alpha_65, alpha_54,\
     + alpha_32 * (2 * mpmath.exp((dG_1 + dG_2) / (2 * k_bT)) + mpmath.sqrt((alpha_21 * (alpha_32 + gamma)) / (alpha_32 * gamma)) \
     + mpmath.exp((dG_1 + dG_2) / k_bT) * mpmath.sqrt((alpha_21 * (alpha_32 + gamma)) / (alpha_32 * gamma))))
 
-def osc_midpoint_six_states(alpha_32, alpha_21, alpha_65, alpha_54,\
-                        alpha_14, alpha_41, dG_1, dG_2,\
-                        gamma, epsilon_1, epsilon_2, k_bT, **params):
+def osc_midpoint_six_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
+                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
     return -1/2 * (-dG_1 + dG_2 - k_bT * mpmath.log((alpha_21 * alpha_32 + alpha_21 * gamma) / (alpha_32 * gamma)))
 
 
@@ -269,13 +268,12 @@ def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edg
         cycle_flux = (cycle_coefficient(cycle, graph_weights) * cycle_inflows(cycle, reaction_graph, graph_weights, absorption_edge_list=absorption_edge_list)) / partition_function
         futile_flux_ls[i] = cycle_flux
     v_bar = np.sum(turnover_flux_ls) / max_steady_turnover
-    # q_bar = turnover_flux / (futile_flux)
-    q_bar = np.sum(futile_flux_ls) / np.sum(turnover_flux_ls)
+    q_bar = np.sum(turnover_flux_ls) / np.sum(futile_flux_ls)
+    # q_bar = np.sum(futile_flux_ls) / np.sum(turnover_flux_ls)
     return v_bar, q_bar
 
-def map_graph_weights_six_states(alpha_32, alpha_21, alpha_65, alpha_54,\
-                        alpha_14, alpha_41, dG_1, dG_2,\
-                        gamma, epsilon_1, epsilon_2, k_bT, **params):
+def map_graph_weights_six_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_43, alpha_43_w, alpha_32_w, alpha_21_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
+                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
     alpha_12 = alpha_21 * mpmath.exp((dG_1 + epsilon_1) / k_bT)
     alpha_23 = alpha_32 * mpmath.exp((dG_2 - epsilon_1)/ k_bT)
 
@@ -310,9 +308,8 @@ def map_graph_weights_six_states(alpha_32, alpha_21, alpha_65, alpha_54,\
 
     return d
 
-def map_graph_weights_eight_states(alpha_32, alpha_21, alpha_43, alpha_65, alpha_76, alpha_87,\
-        alpha_15, alpha_51, dG_1, dG_2, dG_3,\
-        gamma, epsilon_1, epsilon_2, k_bT, **params):
+def map_graph_weights_eight_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_43, alpha_43_w, alpha_32_w, alpha_21_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
+                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
     alpha_12 = alpha_21 * np.exp((dG_1 + epsilon_1) / k_bT)
     alpha_23 = alpha_32 * np.exp((dG_2)/ k_bT)
     alpha_34 = alpha_43 * np.exp((dG_3 - epsilon_1)/ k_bT)
@@ -322,13 +319,14 @@ def map_graph_weights_eight_states(alpha_32, alpha_21, alpha_43, alpha_65, alpha
     alpha_67 = alpha_76 * np.exp((dG_2) / k_bT)
     alpha_78 = alpha_87 * np.exp((dG_2 - epsilon_2) / k_bT)
 
-
-    alpha_26 = alpha_15
-    alpha_62 = alpha_51
-    alpha_37 = alpha_15
-    alpha_73 = alpha_51
-    alpha_48 = alpha_15
-    alpha_84 = alpha_51
+    alpha_15 = alpha_14
+    alpha_51 = alpha_41
+    alpha_26 = alpha_14
+    alpha_62 = alpha_41
+    alpha_37 = alpha_14
+    alpha_73 = alpha_41
+    alpha_48 = alpha_14
+    alpha_84 = alpha_41
 
     d = {        
         (0, 1) : alpha_12,
@@ -358,8 +356,8 @@ def map_graph_weights_eight_states(alpha_32, alpha_21, alpha_43, alpha_65, alpha
 
 
 
-def map_graph_weights_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_54_w, alpha_65_w,\
-                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
+def map_graph_weights_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_43, alpha_43_w, alpha_32_w, alpha_21_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
+                                    alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
     alpha_12 = alpha_21 * np.exp((dG_1 + epsilon_1) / k_bT)
     alpha_23 = alpha_32 * np.exp((dG_2 - epsilon_1)/ k_bT)
     alpha_45 = alpha_54 * np.exp((dG_1 + epsilon_2) / k_bT)
@@ -412,19 +410,19 @@ def map_graph_weights_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_3
     }
     return d
 
-def osc_midpoint_eight_states(alpha_32, alpha_21, alpha_43, dG_1, dG_2, dG_3, gamma, k_bT, **params):
+def osc_midpoint_eight_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_54_w, alpha_43, alpha_43_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
+                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
     return 1/2 * (dG_1 - dG_3 + \
                 k_bT * np.log(-alpha_21 * alpha_32 * alpha_43 - \
                 alpha_21 * alpha_32  * alpha_43 * np.exp(dG_2/k_bT) -\
                 alpha_21  * alpha_32  * gamma - alpha_21 * alpha_32 * np.exp(dG_2/k_bT) * gamma)- \
                 k_bT * np.log(alpha_21 * alpha_43 * gamma + alpha_32 * alpha_43 *np.exp(dG_2/k_bT) * gamma))
 
-def max_rate_eight_states(alpha_32, alpha_21, alpha_43, alpha_65, alpha_54,\
-                        alpha_14, alpha_41, dG_1, dG_2,dG_3,\
-                        gamma, epsilon_1, epsilon_2, k_bT, **params):
+def max_rate_eight_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_43, alpha_43_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
+                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
     return (alpha_21 * alpha_32 * alpha_43 * np.exp((3 * dG_1 + 2 * dG_2 + 3 * dG_3)/(2 * k_bT)) *\
     gamma * np.sqrt(alpha_43 * (alpha_21 + alpha_32 * np.exp(dG_2/k_bT)) * gamma) *\
-    np.sqrt(-alpha_21 * alpha_32 (1 + np.exp(dG_2/k_bT)) * \
+    np.sqrt(-alpha_21 * alpha_32 * (1 + np.exp(dG_2/k_bT)) * \
     (alpha_43 + gamma)))/(alpha_32**2 * alpha_43**2 * \
     np.exp((2 * (dG_2 + dG_3))/k_bT) * gamma**2 - \
     alpha_21**2 * (-alpha_43**2 * np.exp((2 * dG_3)/k_bT) \
@@ -484,6 +482,61 @@ def generate_eight_state_fundamental_cycles():
 
     return [t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16], [tf1,tf2,tf3,tf4]
 
+def osc_midpoint_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_43, alpha_43_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
+                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
+
+    G = generate_ten_state_graph()
+    epsilon_list = np.linspace(-10, 10, 100)
+    J_tot_list_cycle_r = []
+    J_tot_list_cycle_w = []
+    
+    def max_rate_dummy(**params):
+        return 1
+    
+    for epsilon in epsilon_list:
+        epsilon_1 = epsilon
+        epsilon_2 = epsilon
+        alpha_14 = 1e-11
+        alpha_41 = 1e-11
+        right_cycles = [[2,3,4], [7,8,9], [2, 7, 8, 9, 4], [7, 2, 3, 4, 9], [7,2,3,8,9], [2,7,8,3,4], [2,3,8,9,7], [7,8,3,4,9]]
+        wrong_cycles = [[2,1,0], [7,6,5], [2, 7, 6, 5, 0], [7, 2, 1, 0, 5], [7,2,1,6,5], [2,7,6,1,0], [2,1,6,5,7], [7,6,1,0,5]]
+        futile_cycles = [[0,5], [1,6], [2,7], [3,8], [4,9]]
+        J_tot_r, J_tot_w = cycle_flux_fn(right_cycles, wrong_cycles, G, [(0,2), (5,7), (4,2), (9,7)], max_ss_rate_fn=max_rate_dummy, weight_mapping_fn=map_graph_weights_ten_states, alpha_32=alpha_32, \
+                                                alpha_21=alpha_21, alpha_54=alpha_54, alpha_65=alpha_65, alpha_43=alpha_43, alpha_43_w=alpha_43_w, \
+                                                alpha_21_w=alpha_21, alpha_32_w=alpha_32, alpha_54_w=alpha_54, alpha_65_w=alpha_65, dG_1=dG_1, dG_2=dG_2, dG_1_w = dG_1_w, dG_2_w = dG_2_w, dG_3=dG_3, dG_3_w=dG_3_w, \
+                                                gamma=gamma, epsilon_1=epsilon_1, epsilon_2=epsilon_2, k_bT=k_bT, alpha_14=alpha_14, alpha_41=alpha_41, alpha_76=alpha_76, alpha_87=alpha_87, alpha_76_w=alpha_76_w, alpha_87_w=alpha_87_w)
+        J_tot_list_cycle_r.append(J_tot_r * max_rate_dummy())
+        J_tot_list_cycle_w.append(J_tot_w * max_rate_dummy())
+
+        return epsilon_list[np.argmax(np.array(J_tot_list_cycle_r))]
+
+def max_rate_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_43, alpha_43_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
+                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT,**params):
+    G = generate_ten_state_graph()
+    epsilon_list = np.linspace(-10, 10, 100)
+    J_tot_list_cycle_r = []
+    J_tot_list_cycle_w = []
+    
+    def max_rate_dummy(**params):
+        return 1
+    
+    for epsilon in epsilon_list:
+        epsilon_1 = epsilon
+        epsilon_2 = epsilon
+        alpha_14 = 1e-11
+        alpha_41 = 1e-11
+        right_cycles = [[2,3,4], [7,8,9], [2, 7, 8, 9, 4], [7, 2, 3, 4, 9], [7,2,3,8,9], [2,7,8,3,4], [2,3,8,9,7], [7,8,3,4,9]]
+        wrong_cycles = [[2,1,0], [7,6,5], [2, 7, 6, 5, 0], [7, 2, 1, 0, 5], [7,2,1,6,5], [2,7,6,1,0], [2,1,6,5,7], [7,6,1,0,5]]
+        futile_cycles = [[0,5], [1,6], [2,7], [3,8], [4,9]]
+        J_tot_r, J_tot_w = cycle_flux_fn(right_cycles, wrong_cycles, G, [(0,2), (5,7), (4,2), (9,7)], max_ss_rate_fn=max_rate_dummy, weight_mapping_fn=map_graph_weights_ten_states, alpha_32=alpha_32, \
+                                                alpha_21=alpha_21, alpha_54=alpha_54, alpha_65=alpha_65,\
+                                                alpha_21_w=alpha_21, alpha_32_w=alpha_32, alpha_54_w=alpha_54, alpha_43=alpha_43, alpha_43_w=alpha_43_w, alpha_65_w=alpha_65, dG_1=dG_1, dG_2=dG_2, dG_1_w = dG_1_w, dG_2_w = dG_2_w, dG_3=dG_3, dG_3_w=dG_3_w,\
+                                                gamma=gamma, epsilon_1=epsilon_1, epsilon_2=epsilon_2, k_bT=k_bT, alpha_14=alpha_14, alpha_41=alpha_41, alpha_76=alpha_76, alpha_87=alpha_87, alpha_76_w=alpha_76_w, alpha_87_w=alpha_87_w)
+        J_tot_list_cycle_r.append(J_tot_r * max_rate_dummy())
+        J_tot_list_cycle_w.append(J_tot_w * max_rate_dummy())
+
+    return np.max(np.array(J_tot_list_cycle_r))
+
 def run_dycat_model(config_file_path):
     '''
     Run the dynamic catalysis model using the specified configuration file, rate function, and default arguments.
@@ -497,16 +550,16 @@ def run_dycat_model(config_file_path):
         simulation_settings = json.load(config_file_path)
 
     outfolder = simulation_settings.get('folder_save', None)
-    outfolder_final = outfolder
+    outfolder_final = outfolder + "_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     name_save = simulation_settings.get('name_save', None)
     name='%s_last'%(name_save)
 
     minp = simulation_settings.get('pars_limit_min', None)
     maxp = simulation_settings.get('pars_limit_max', None)
-    stp_min = simulation_settings.get('row_ar_min', None)
-    stp_max = simulation_settings.get('row_ar_max', None)
-    pos_min = simulation_settings.get('col_ar_min', None)
-    pos_max = simulation_settings.get('col_ar_max', None)
+    stp_min = simulation_settings.get('col_ar_min', None)
+    stp_max = simulation_settings.get('col_ar_max', None)
+    pos_min = simulation_settings.get('row_ar_min', None)
+    pos_max = simulation_settings.get('row_ar_max', None)
     n_grid = simulation_settings.get('n_grid', None)
     seed = simulation_settings.get('seed', None)
     mat = simulation_settings.get('mat', None)
@@ -542,10 +595,14 @@ def run_dycat_model(config_file_path):
     alpha_65_w = simulation_settings.get('alpha_65_w', None)
     alpha_87_w = simulation_settings.get('alpha_87_w', None)
     alpha_76_w = simulation_settings.get('alpha_76_w', None)
+    alpha_43 = simulation_settings.get('alpha_43', None)
+    alpha_43_w = simulation_settings.get('alpha_43_w', None)
     dG_1 = simulation_settings.get('dG_1', None)
     dG_2 = simulation_settings.get('dG_2', None)
     dG_1_w = simulation_settings.get('dG_1_w', None)
     dG_2_w = simulation_settings.get('dG_2_w', None)
+    dG_3 = simulation_settings.get('dG_3', None)
+    dG_3_w = simulation_settings.get('dG_3_w', None)
     gamma = simulation_settings.get('gamma', None)
     graph_fn = simulation_settings.get('graph_fn', None)
     k_bT = simulation_settings.get('k_bT', None)
@@ -553,6 +610,11 @@ def run_dycat_model(config_file_path):
     weight_mapping_fn = simulation_settings.get('weight_mapping_fn', None)
     osc_midpoint_fn = simulation_settings.get('osc_midpoint_fn', None)
 
+    mod = importlib.import_module('dynamic_catalysis_model')
+    weight_mapping_fn = getattr(mod, simulation_settings["weight_mapping_fn"])
+    max_ss_rate_fn = getattr(mod, simulation_settings["max_ss_rate_fn"])
+    osc_midpoint_fn = getattr(mod, simulation_settings["osc_midpoint_fn"])
+    graph_fn = getattr(mod, simulation_settings["graph_fn"])
 
     stp_ar = np.linspace(stp_min,stp_max,n_grid)
     pos_ar = np.linspace(pos_min,pos_max,n_grid)
@@ -582,8 +644,8 @@ def run_dycat_model(config_file_path):
         'dopulltangents':dopulltangents} 
 
 
-    if not os.path.isdir(outfolder):
-        os.mkdir(outfolder)
+    if not os.path.isdir(outfolder_final):
+        os.mkdir(outfolder_final)
 
 
     settings=defaultsettings.copy()
@@ -608,10 +670,14 @@ def run_dycat_model(config_file_path):
         "alpha_76": alpha_76,
         "alpha_87_w": alpha_87,
         "alpha_76_w": alpha_76,
+        "alpha_43": alpha_43,
+        "alpha_43_w": alpha_43_w,
         "dG_1": dG_1,
         "dG_2": dG_2,
         "dG_1_w": dG_1_w,
         "dG_2_w": dG_2_w,
+        "dG_3": dG_3,
+        "dG_3_w": dG_3_w,
         "gamma": gamma,
         "k_bT": k_bT
     })
@@ -620,7 +686,6 @@ def run_dycat_model(config_file_path):
 
     BE=BF.BoundaryExplorer(**settings)
     BE.get_initial_points(10)
-
     #Extend boundary
     args=defaultargs.copy()
     BE.extend_boundary(**args)
@@ -635,22 +700,45 @@ def run_dycat_model(config_file_path):
     for i in range(BE.mat.shape[0]):
         for j in range(BE.mat.shape[1]):
             for k in cycles:
-                params = [BE.mat_pars[key][i, j] for key in BE.mat_pars]
-                amplitude = params[0]
-                amplitude = np.log10(amplitude)
-                oscMidpoint = hyperparams["osc_midpoint_fn"](**hyperparams)
-                epsilon_1 = oscMidpoint + amplitude
-                epsilon_2 = oscMidpoint - amplitude
-                v_bar, q_bar = cycle_flux_fn([k], None, G, absorption_edge_list=absorption_edge_list, max_ss_rate_fn=max_ss_rate_fn, weight_mapping_fn=weight_mapping_fn, **dict(zip(BE.mat_pars.keys(), params)))
-                sub_cycle_fluxes[k, i+j] = v_bar
+                params = BE.mat_pars[i, j, :]
+                rate_fn = make_rate_fn({
+                "cycles_1": k,
+                "cycles_2": None,
+                "absorption_edge_list": absorption_edge_list,
+                "max_ss_rate_fn": max_ss_rate_fn,
+                "weight_mapping_fn": weight_mapping_fn,
+                "osc_midpoint_fn": osc_midpoint_fn,
+                "graph_fn": graph_fn,
+                "alpha_32": alpha_32,
+                "alpha_21": alpha_21,
+                "alpha_54": alpha_54,
+                "alpha_65": alpha_65,
+                "alpha_21_w": alpha_21,
+                "alpha_32_w": alpha_32,
+                "alpha_43": alpha_43,
+                "alpha_43_w": alpha_43_w,
+                "alpha_54_w": alpha_54,
+                "alpha_65_w": alpha_65,
+                "alpha_87": alpha_87,
+                "alpha_76": alpha_76,
+                "alpha_87_w": alpha_87,
+                "alpha_76_w": alpha_76,
+                "dG_1": dG_1,
+                "dG_2": dG_2,
+                "dG_1_w": dG_1_w,
+                "dG_2_w": dG_2_w,
+                "dG_3": dG_3,
+                "dG_3_w": dG_3_w,
+                "gamma": gamma,
+                "k_bT": k_bT
+                })
     np.save(os.path.join(outfolder_final, 'sub_cycle_fluxes_'+name+'.npy'), sub_cycle_fluxes)
 
 def make_rate_fn(hyperparams):
-    mod = importlib.import_module('dynamic_catalysis_model')
-    weight_mapping_fn = getattr(mod, hyperparams["weight_mapping_fn"])
-    max_ss_rate_fn = getattr(mod, hyperparams["max_ss_rate_fn"])
-    osc_midpoint_fn = getattr(mod, hyperparams["osc_midpoint_fn"])
-    graph_fn = getattr(mod, hyperparams["graph_fn"])
+    weight_mapping_fn = hyperparams["weight_mapping_fn"]
+    max_ss_rate_fn = hyperparams["max_ss_rate_fn"]
+    osc_midpoint_fn = hyperparams["osc_midpoint_fn"]
+    graph_fn = hyperparams["graph_fn"]
     def rate_fn(params):
         if len(params) == 3:
             alpha_14, alpha_41, amplitude = params
@@ -679,8 +767,8 @@ def make_rate_fn(hyperparams):
             alpha_54=hyperparams["alpha_54"], 
             alpha_65=hyperparams["alpha_65"],
             alpha_76=hyperparams["alpha_76"], alpha_87=hyperparams["alpha_87"],
-            dG_1 = hyperparams["dG_1"], dG_2 = hyperparams["dG_2"], dG_1_w = hyperparams["dG_1_w"], dG_2_w = hyperparams["dG_2_w"],
-            alpha_21_w=hyperparams["alpha_21_w"], alpha_32_w=hyperparams["alpha_32_w"], alpha_54_w=hyperparams["alpha_54_w"], alpha_65_w=hyperparams["alpha_65_w"],alpha_76_w=hyperparams["alpha_76_w"], alpha_87_w=hyperparams["alpha_87_w"],
+            dG_1 = hyperparams["dG_1"], dG_2 = hyperparams["dG_2"], dG_1_w = hyperparams["dG_1_w"], dG_2_w = hyperparams["dG_2_w"], dG_3 = hyperparams["dG_3"], dG_3_w = hyperparams["dG_3_w"],
+            alpha_21_w=hyperparams["alpha_21_w"], alpha_32_w=hyperparams["alpha_32_w"], alpha_43=hyperparams["alpha_43"], alpha_43_w=hyperparams["alpha_43_w"], alpha_54_w=hyperparams["alpha_54_w"], alpha_65_w=hyperparams["alpha_65_w"],alpha_76_w=hyperparams["alpha_76_w"], alpha_87_w=hyperparams["alpha_87_w"],
             gamma=hyperparams["gamma"], epsilon_1=epsilon_1, epsilon_2=epsilon_2, k_bT=hyperparams["k_bT"]
         )
 
