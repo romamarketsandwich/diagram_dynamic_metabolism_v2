@@ -4,12 +4,12 @@
   "pars_limit_min": 1e-3,
   "pars_limit_max": 1000,
   "row_ar_min": 1e-3,
-  "row_ar_max": 10,
+  "row_ar_max": 80,
   "col_ar_min": 0.1,
-  "col_ar_max": 80,
+  "col_ar_max": 10,
   "n_grid": 200,
   "seed": 42,
-  "niters": 20,
+  "niters": 1,
   "npars": 3,
   "niters_conv_points": 10,
   "niters_save": 4,
@@ -37,6 +37,6 @@
   "alpha_41": 1.0,
   "dG_1": 2,
   "dG_2": 2,
-  "gamma": 20,
+  "gamma": 200000000,
   "k_bT": 1
 }

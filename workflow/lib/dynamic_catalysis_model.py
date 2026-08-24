@@ -9,6 +9,7 @@ import sys
 import importlib
 import datetime
 import os
+from pathlib import Path
 
 def root_tree_weights(spanning_tree, weights, absorption_edge_list=None, nodes=None, allNodes=True):
     #assumes at least one valid root in the spanning tree implementing one-way fluxes. 
@@ -156,7 +157,6 @@ def cycle_inflows(cycle, graph, graph_weights, absorption_edge_list=None):
     assert len(cycle) >= 2    
     # contract cycle into a new node, named the first node of the cycle.
     node_1 = cycle[0]
-
     new_graph = copy.deepcopy(graph)
     new_graph_weights = copy.deepcopy(graph_weights)
     if node_1 != cycle[1]:
@@ -178,6 +178,10 @@ def cycle_inflows(cycle, graph, graph_weights, absorption_edge_list=None):
     G = nx.DiGraph()
     for (u,v), attrs in new_graph_weights.items():
         G.add_edge(u, v, weight=np.float64(attrs))
+
+    if not G.nodes:
+        return 1
+
     Sigma = nx.number_of_spanning_trees(G.reverse(copy=False), weight='weight', root=node_1)
     return Sigma
     # return span_trees_graph
@@ -193,7 +197,6 @@ def cycle_coefficient(cycle, graph_weights):
     graph_weights: dict of weights assigned to edges (use function map_graph_weights)
     '''
     assert len(cycle) >= 2
-
 
     new_cycle = [i for i in cycle] + [cycle[0]]
 
@@ -268,8 +271,8 @@ def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edg
         cycle_flux = (cycle_coefficient(cycle, graph_weights) * cycle_inflows(cycle, reaction_graph, graph_weights, absorption_edge_list=absorption_edge_list)) / partition_function
         futile_flux_ls[i] = cycle_flux
     v_bar = np.sum(turnover_flux_ls) / max_steady_turnover
-    q_bar = np.sum(turnover_flux_ls) / np.sum(futile_flux_ls)
-    # q_bar = np.sum(futile_flux_ls) / np.sum(turnover_flux_ls)
+    # q_bar = np.sum(turnover_flux_ls) / np.sum(futile_flux_ls)
+    q_bar = np.sum(futile_flux_ls) / np.sum(turnover_flux_ls)
     return v_bar, q_bar
 
 def map_graph_weights_six_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_43, alpha_43_w, alpha_32_w, alpha_21_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
@@ -412,15 +415,16 @@ def map_graph_weights_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_4
 
 def osc_midpoint_eight_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_54_w, alpha_43, alpha_43_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
                                  alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
-    return 1/2 * (dG_1 - dG_3 + \
+    alpha = 1/2 * (dG_1 - dG_3 + \
                 k_bT * np.log(-alpha_21 * alpha_32 * alpha_43 - \
                 alpha_21 * alpha_32  * alpha_43 * np.exp(dG_2/k_bT) -\
                 alpha_21  * alpha_32  * gamma - alpha_21 * alpha_32 * np.exp(dG_2/k_bT) * gamma)- \
                 k_bT * np.log(alpha_21 * alpha_43 * gamma + alpha_32 * alpha_43 *np.exp(dG_2/k_bT) * gamma))
+    return 0
 
 def max_rate_eight_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_43, alpha_43_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
                                  alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
-    return (alpha_21 * alpha_32 * alpha_43 * np.exp((3 * dG_1 + 2 * dG_2 + 3 * dG_3)/(2 * k_bT)) *\
+    alpha = (alpha_21 * alpha_32 * alpha_43 * np.exp((3 * dG_1 + 2 * dG_2 + 3 * dG_3)/(2 * k_bT)) *\
     gamma * np.sqrt(alpha_43 * (alpha_21 + alpha_32 * np.exp(dG_2/k_bT)) * gamma) *\
     np.sqrt(-alpha_21 * alpha_32 * (1 + np.exp(dG_2/k_bT)) * \
     (alpha_43 + gamma)))/(alpha_32**2 * alpha_43**2 * \
@@ -438,6 +442,8 @@ def max_rate_eight_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, al
     np.sqrt(-alpha_21 * alpha_32 * (1 + np.exp(dG_2/k_bT)) * (alpha_43 + gamma)) + \
     np.exp(dG_1/(2 * k_bT)) * gamma * np.sqrt(alpha_43 * (alpha_21 + alpha_32 * \
     np.exp(dG_2/k_bT)) * gamma) *np.sqrt(-alpha_21 * alpha_32 * (1 + np.exp(dG_2/k_bT)) * (alpha_43 + gamma)))))
+    return 1
+
 
 def generate_eight_state_graph():
     G = nx.Graph()
@@ -484,6 +490,7 @@ def generate_eight_state_fundamental_cycles():
 
 def osc_midpoint_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_43, alpha_43_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
                                  alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
+    return None
 
     G = generate_ten_state_graph()
     epsilon_list = np.linspace(-10, 10, 100)
@@ -512,6 +519,7 @@ def osc_midpoint_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, 
 
 def max_rate_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_43, alpha_43_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
                                  alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT,**params):
+    return 3
     G = generate_ten_state_graph()
     epsilon_list = np.linspace(-10, 10, 100)
     J_tot_list_cycle_r = []
@@ -537,221 +545,69 @@ def max_rate_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alph
 
     return np.max(np.array(J_tot_list_cycle_r))
 
-def run_dycat_model(config_file_path):
-    '''
-    Run the dynamic catalysis model using the specified configuration file, rate function, and default arguments.
-    This function initializes the BoundaryExplorer with the provided settings, computes initial points, and extends the boundary based on the specified number of iterations. The results' matrix parameters and sub-cycle fluxes, are saved in the designated output folder.
-    Parameters:
-    config_file_path (str): The path to the configuration file.
-    rate_fn (callable): The rate function to use.
-    defaultargs (dict): The default arguments for the model.
-    '''
-    with open(config_file_path, 'r') as config_file_path:
-        simulation_settings = json.load(config_file_path)
-
-    outfolder = simulation_settings.get('folder_save', None)
-    outfolder_final = outfolder + "_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    name_save = simulation_settings.get('name_save', None)
-    name='%s_last'%(name_save)
-
-    minp = simulation_settings.get('pars_limit_min', None)
-    maxp = simulation_settings.get('pars_limit_max', None)
-    stp_min = simulation_settings.get('col_ar_min', None)
-    stp_max = simulation_settings.get('col_ar_max', None)
-    pos_min = simulation_settings.get('row_ar_min', None)
-    pos_max = simulation_settings.get('row_ar_max', None)
-    n_grid = simulation_settings.get('n_grid', None)
-    seed = simulation_settings.get('seed', None)
-    mat = simulation_settings.get('mat', None)
-    mat_pars = simulation_settings.get('mat_pars', None)
-
-    niters = simulation_settings.get('niters', None)
-    npars = simulation_settings.get('npars', None)
-    niters_conv_points = simulation_settings.get('niters_conv_points', None)
-    niters_save = simulation_settings.get('niters_save', None)
-    prob_par = simulation_settings.get('prob_par', None)
-    prob_replace = simulation_settings.get('prob_replace', None)
-    extr_uniform = simulation_settings.get('extr_uniform', None)
-    L_project = simulation_settings.get('L_project', None)
-    plotting = simulation_settings.get('plotting', None)
-    verbose = simulation_settings.get('verbose', None)
-    dofirstmutate = simulation_settings.get('dofirstmutate', None)
-    dopullcentroids = simulation_settings.get('dopullcentroids', None)
-    dopulltangents = simulation_settings.get('dopulltangents', None)
-    cycles_1 = simulation_settings.get('cycles_1', None)
-    cycles_2 = simulation_settings.get('cycles_2', None)
-    absorption_edge_list = simulation_settings.get('absorption_edge_list', None)
-    alpha_32 = simulation_settings.get('alpha_32', None)
-    alpha_21 = simulation_settings.get('alpha_21', None)
-    alpha_54 = simulation_settings.get('alpha_54', None)
-    alpha_65 = simulation_settings.get('alpha_65', None)
-    alpha_14 = simulation_settings.get('alpha_14', None)
-    alpha_41 = simulation_settings.get('alpha_41', None)
-    alpha_87 = simulation_settings.get('alpha_87', None)
-    alpha_76 = simulation_settings.get('alpha_76', None)
-    alpha_21_w = simulation_settings.get('alpha_21_w', None)
-    alpha_32_w = simulation_settings.get('alpha_32_w', None)
-    alpha_54_w = simulation_settings.get('alpha_54_w', None)
-    alpha_65_w = simulation_settings.get('alpha_65_w', None)
-    alpha_87_w = simulation_settings.get('alpha_87_w', None)
-    alpha_76_w = simulation_settings.get('alpha_76_w', None)
-    alpha_43 = simulation_settings.get('alpha_43', None)
-    alpha_43_w = simulation_settings.get('alpha_43_w', None)
-    dG_1 = simulation_settings.get('dG_1', None)
-    dG_2 = simulation_settings.get('dG_2', None)
-    dG_1_w = simulation_settings.get('dG_1_w', None)
-    dG_2_w = simulation_settings.get('dG_2_w', None)
-    dG_3 = simulation_settings.get('dG_3', None)
-    dG_3_w = simulation_settings.get('dG_3_w', None)
-    gamma = simulation_settings.get('gamma', None)
-    graph_fn = simulation_settings.get('graph_fn', None)
-    k_bT = simulation_settings.get('k_bT', None)
-    max_ss_rate_fn = simulation_settings.get('max_ss_rate_fn', None)
-    weight_mapping_fn = simulation_settings.get('weight_mapping_fn', None)
-    osc_midpoint_fn = simulation_settings.get('osc_midpoint_fn', None)
-
-    mod = importlib.import_module('dynamic_catalysis_model')
-    weight_mapping_fn = getattr(mod, simulation_settings["weight_mapping_fn"])
-    max_ss_rate_fn = getattr(mod, simulation_settings["max_ss_rate_fn"])
-    osc_midpoint_fn = getattr(mod, simulation_settings["osc_midpoint_fn"])
-    graph_fn = getattr(mod, simulation_settings["graph_fn"])
-
-    stp_ar = np.linspace(stp_min,stp_max,n_grid)
-    pos_ar = np.linspace(pos_min,pos_max,n_grid)
+def load_simulation_settings(config_file_path):
+    with open(config_file_path, "r") as f:
+        return json.load(f)
 
 
+def build_rate_fn_kwargs(simulation_settings):
+    return {
+        "cycles_1": simulation_settings.get("cycles_1", None),
+        "cycles_2": simulation_settings.get("cycles_2", None),
+        "absorption_edge_list": simulation_settings.get("absorption_edge_list", None),
+        "max_ss_rate_fn": simulation_settings.get("max_ss_rate_fn", None),
+        "weight_mapping_fn": simulation_settings.get("weight_mapping_fn", None),
+        "osc_midpoint_fn": simulation_settings.get("osc_midpoint_fn", None),
+        "graph_fn": simulation_settings.get("graph_fn", None),
+        "alpha_32": simulation_settings.get("alpha_32", None),
+        "alpha_21": simulation_settings.get("alpha_21", None),
+        "alpha_54": simulation_settings.get("alpha_54", None),
+        "alpha_65": simulation_settings.get("alpha_65", None),
+        "alpha_21_w": simulation_settings.get("alpha_21_w", None),
+        "alpha_32_w": simulation_settings.get("alpha_32_w", None),
+        "alpha_43": simulation_settings.get("alpha_43", None),
+        "alpha_43_w": simulation_settings.get("alpha_43_w", None),
+        "alpha_54_w": simulation_settings.get("alpha_54_w", None),
+        "alpha_65_w": simulation_settings.get("alpha_65_w", None),
+        "alpha_87": simulation_settings.get("alpha_87", None),
+        "alpha_76": simulation_settings.get("alpha_76", None),
+        "alpha_87_w": simulation_settings.get("alpha_87_w", None),
+        "alpha_76_w": simulation_settings.get("alpha_76_w", None),
+        "dG_1": simulation_settings.get("dG_1", None),
+        "dG_2": simulation_settings.get("dG_2", None),
+        "dG_1_w": simulation_settings.get("dG_1_w", None),
+        "dG_2_w": simulation_settings.get("dG_2_w", None),
+        "dG_3": simulation_settings.get("dG_3", None),
+        "dG_3_w": simulation_settings.get("dG_3_w", None),
+        "gamma": simulation_settings.get("gamma", None),
+        "k_bT": simulation_settings.get("k_bT", None),
+    }
 
-    defaultsettings={'pars_limit':[minp,maxp],
-           'row_ar':stp_ar,
-          'col_ar':pos_ar,
-          'seed':seed,
-         'mat':mat,
-         'mat_pars':mat_pars,
-         'npars':npars,}
-
-    defaultargs={'niters':niters,
-        'niters_conv':niters_conv_points,
-        'niters_conv_points':niters_conv_points,
-        'niters_save':niters_save,
-        'prob_par':prob_par,
-        'prob_replace':prob_replace,
-        'extr_uniform':extr_uniform,
-        'L_project':L_project,
-        'plotting':plotting,
-        'verbose':verbose,
-        'dofirstmutate':dofirstmutate,
-        'dopullcentroids':dopullcentroids,
-        'dopulltangents':dopulltangents} 
-
-
-    if not os.path.isdir(outfolder_final):
-        os.mkdir(outfolder_final)
-
-
-    settings=defaultsettings.copy()
-
-    settings['compute_x_y_f']=make_rate_fn({
-        "cycles_1": cycles_1,
-        "cycles_2": cycles_2,
-        "absorption_edge_list": absorption_edge_list,
-        "max_ss_rate_fn": max_ss_rate_fn,
-        "weight_mapping_fn": weight_mapping_fn,
-        "osc_midpoint_fn": osc_midpoint_fn,
-        "graph_fn": graph_fn,
-        "alpha_32": alpha_32,
-        "alpha_21": alpha_21,
-        "alpha_54": alpha_54,
-        "alpha_65": alpha_65,
-        "alpha_21_w": alpha_21,
-        "alpha_32_w": alpha_32,
-        "alpha_54_w": alpha_54,
-        "alpha_65_w": alpha_65,
-        "alpha_87": alpha_87,
-        "alpha_76": alpha_76,
-        "alpha_87_w": alpha_87,
-        "alpha_76_w": alpha_76,
-        "alpha_43": alpha_43,
-        "alpha_43_w": alpha_43_w,
-        "dG_1": dG_1,
-        "dG_2": dG_2,
-        "dG_1_w": dG_1_w,
-        "dG_2_w": dG_2_w,
-        "dG_3": dG_3,
-        "dG_3_w": dG_3_w,
-        "gamma": gamma,
-        "k_bT": k_bT
-    })
-
-    #Initialise and get first 10 points
-
-    BE=BF.BoundaryExplorer(**settings)
-    BE.get_initial_points(10)
-    #Extend boundary
-    args=defaultargs.copy()
-    BE.extend_boundary(**args)
-    np.save(os.path.join(outfolder_final,'mat_'+name+'.npy'),BE.mat)
-    np.save(os.path.join(outfolder_final,'mat_pars_'+name+'.npy'),BE.mat_pars)
-    with open(os.path.join(outfolder_final, name_save + '_config.json'), 'w') as f:
-        json.dump(simulation_settings, f)
-
-    # get sub-cycle fluxes
-    cycles = cycles_1 + cycles_2
-    sub_cycle_fluxes = np.zeros((len(cycles), BE.mat.shape[0] + BE.mat.shape[1]))
-    for i in range(BE.mat.shape[0]):
-        for j in range(BE.mat.shape[1]):
-            for k in cycles:
-                params = BE.mat_pars[i, j, :]
-                rate_fn = make_rate_fn({
-                "cycles_1": k,
-                "cycles_2": None,
-                "absorption_edge_list": absorption_edge_list,
-                "max_ss_rate_fn": max_ss_rate_fn,
-                "weight_mapping_fn": weight_mapping_fn,
-                "osc_midpoint_fn": osc_midpoint_fn,
-                "graph_fn": graph_fn,
-                "alpha_32": alpha_32,
-                "alpha_21": alpha_21,
-                "alpha_54": alpha_54,
-                "alpha_65": alpha_65,
-                "alpha_21_w": alpha_21,
-                "alpha_32_w": alpha_32,
-                "alpha_43": alpha_43,
-                "alpha_43_w": alpha_43_w,
-                "alpha_54_w": alpha_54,
-                "alpha_65_w": alpha_65,
-                "alpha_87": alpha_87,
-                "alpha_76": alpha_76,
-                "alpha_87_w": alpha_87,
-                "alpha_76_w": alpha_76,
-                "dG_1": dG_1,
-                "dG_2": dG_2,
-                "dG_1_w": dG_1_w,
-                "dG_2_w": dG_2_w,
-                "dG_3": dG_3,
-                "dG_3_w": dG_3_w,
-                "gamma": gamma,
-                "k_bT": k_bT
-                })
-    np.save(os.path.join(outfolder_final, 'sub_cycle_fluxes_'+name+'.npy'), sub_cycle_fluxes)
 
 def make_rate_fn(hyperparams):
     weight_mapping_fn = hyperparams["weight_mapping_fn"]
     max_ss_rate_fn = hyperparams["max_ss_rate_fn"]
     osc_midpoint_fn = hyperparams["osc_midpoint_fn"]
     graph_fn = hyperparams["graph_fn"]
+
     def rate_fn(params):
         if len(params) == 3:
             alpha_14, alpha_41, amplitude = params
             amplitude = np.log10(amplitude)
-            oscMidpoint = osc_midpoint_fn(alpha_14=None, alpha_41=None, epsilon_1=None, epsilon_2=None, **hyperparams)
-            epsilon_1 = oscMidpoint + amplitude
-            epsilon_2 = oscMidpoint - amplitude
+            osc_midpoint = osc_midpoint_fn(
+                alpha_14=None,
+                alpha_41=None,
+                epsilon_1=None,
+                epsilon_2=None,
+                **hyperparams,
+            )
+            epsilon_1 = osc_midpoint + amplitude
+            epsilon_2 = osc_midpoint - amplitude
         elif len(params) == 4:
             alpha_14, alpha_41, epsilon_1, epsilon_2 = params
         else:
-            raise ValueError("params must be a list of length 3 or 4")
+            raise ValueError("params must have length 3 or 4")
 
-        
         return cycle_flux_fn(
             hyperparams["cycles_1"],
             hyperparams["cycles_2"],
@@ -763,13 +619,130 @@ def make_rate_fn(hyperparams):
             alpha_14=alpha_14,
             alpha_41=alpha_41,
             alpha_32=hyperparams["alpha_32"],
-            alpha_21=hyperparams["alpha_21"], 
-            alpha_54=hyperparams["alpha_54"], 
+            alpha_21=hyperparams["alpha_21"],
+            alpha_54=hyperparams["alpha_54"],
             alpha_65=hyperparams["alpha_65"],
-            alpha_76=hyperparams["alpha_76"], alpha_87=hyperparams["alpha_87"],
-            dG_1 = hyperparams["dG_1"], dG_2 = hyperparams["dG_2"], dG_1_w = hyperparams["dG_1_w"], dG_2_w = hyperparams["dG_2_w"], dG_3 = hyperparams["dG_3"], dG_3_w = hyperparams["dG_3_w"],
-            alpha_21_w=hyperparams["alpha_21_w"], alpha_32_w=hyperparams["alpha_32_w"], alpha_43=hyperparams["alpha_43"], alpha_43_w=hyperparams["alpha_43_w"], alpha_54_w=hyperparams["alpha_54_w"], alpha_65_w=hyperparams["alpha_65_w"],alpha_76_w=hyperparams["alpha_76_w"], alpha_87_w=hyperparams["alpha_87_w"],
-            gamma=hyperparams["gamma"], epsilon_1=epsilon_1, epsilon_2=epsilon_2, k_bT=hyperparams["k_bT"]
+            alpha_76=hyperparams["alpha_76"],
+            alpha_87=hyperparams["alpha_87"],
+            alpha_21_w=hyperparams["alpha_21_w"],
+            alpha_32_w=hyperparams["alpha_32_w"],
+            alpha_43=hyperparams["alpha_43"],
+            alpha_43_w=hyperparams["alpha_43_w"],
+            alpha_54_w=hyperparams["alpha_54_w"],
+            alpha_65_w=hyperparams["alpha_65_w"],
+            alpha_76_w=hyperparams["alpha_76_w"],
+            alpha_87_w=hyperparams["alpha_87_w"],
+            dG_1=hyperparams["dG_1"],
+            dG_2=hyperparams["dG_2"],
+            dG_1_w=hyperparams["dG_1_w"],
+            dG_2_w=hyperparams["dG_2_w"],
+            dG_3=hyperparams["dG_3"],
+            dG_3_w=hyperparams["dG_3_w"],
+            gamma=hyperparams["gamma"],
+            epsilon_1=epsilon_1,
+            epsilon_2=epsilon_2,
+            k_bT=hyperparams["k_bT"],
         )
 
     return rate_fn
+
+
+def run_dycat_model(config_file_path):
+    simulation_settings = load_simulation_settings(config_file_path)
+
+    outfolder = simulation_settings.get("folder_save")
+    outfolder_final = f"{outfolder}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    name_save = simulation_settings.get("name_save")
+    name = f"{name_save}_last"
+
+    assert simulation_settings.get("col_ar_min") is not None, "col_ar_min must be specified in the config file"
+    assert simulation_settings.get("col_ar_max") is not None, "col_ar_max must be specified in the config file"
+    assert simulation_settings.get("row_ar_min") is not None, "row_ar_min must be specified in the config file"
+    assert simulation_settings.get("row_ar_max") is not None, "row_ar_max must be specified in the config file"
+    assert simulation_settings.get("n_grid") is not None, "n_grid must be specified in the config file"
+    assert simulation_settings.get("pars_limit_min") is not None, "pars_limit_min must be specified in the config file"
+    assert simulation_settings.get("pars_limit_max") is not None, "pars_limit_max must be specified in the config file"
+    assert simulation_settings.get("npars") is not None, "npars must be specified in the config file"
+    assert simulation_settings.get("weight_mapping_fn") is not None, "weight_mapping_fn must be specified in the config file"
+    assert simulation_settings.get("max_ss_rate_fn") is not None, "max_ss_rate_fn must be specified in the config file"
+    assert simulation_settings.get("osc_midpoint_fn") is not None, "osc_midpoint_fn must be specified in the config file"
+    assert simulation_settings.get("graph_fn") is not None, "graph_fn must be specified in the config file"
+
+    stp_ar = np.linspace(
+        simulation_settings.get("col_ar_min", None),
+        simulation_settings.get("col_ar_max", None),
+        simulation_settings.get("n_grid", None),
+    )
+    pos_ar = np.linspace(
+        simulation_settings.get("row_ar_min", None),
+        simulation_settings.get("row_ar_max", None),
+        simulation_settings.get("n_grid", None),
+    )
+
+    defaultsettings = {
+        "pars_limit": [
+            simulation_settings.get("pars_limit_min", None),
+            simulation_settings.get("pars_limit_max", None),
+        ],
+        "row_ar": pos_ar,
+        "col_ar": stp_ar,
+        "seed": simulation_settings.get("seed", None),
+        "mat": simulation_settings.get("mat", None),
+        "mat_pars": simulation_settings.get("mat_pars", None),
+        "npars": simulation_settings.get("npars", None),
+    }
+
+    defaultargs = {
+        "niters": simulation_settings.get("niters", None),
+        "niters_conv": simulation_settings.get("niters_conv_points", None),
+        "niters_conv_points": simulation_settings.get("niters_conv_points", None),
+        "niters_save": simulation_settings.get("niters_save", None),
+        "prob_par": simulation_settings.get("prob_par", None),
+        "prob_replace": simulation_settings.get("prob_replace", None),
+        "extr_uniform": simulation_settings["extr_uniform"],
+        "L_project": simulation_settings["L_project"],
+        "plotting": simulation_settings["plotting"],
+        "verbose": simulation_settings["verbose"],
+        "dofirstmutate": simulation_settings["dofirstmutate"],
+        "dopullcentroids": simulation_settings["dopullcentroids"],
+        "dopulltangents": simulation_settings["dopulltangents"],
+        "folder_save": outfolder_final,
+        "name_save": name_save,
+    }
+
+    mod = importlib.import_module("dynamic_catalysis_model")
+    simulation_settings["weight_mapping_fn"] = getattr(mod, simulation_settings["weight_mapping_fn"])
+    simulation_settings["max_ss_rate_fn"] = getattr(mod, simulation_settings["max_ss_rate_fn"])
+    simulation_settings["osc_midpoint_fn"] = getattr(mod, simulation_settings["osc_midpoint_fn"])
+    simulation_settings["graph_fn"] = getattr(mod, simulation_settings["graph_fn"])
+
+    os.makedirs(outfolder_final, exist_ok=True)
+
+    settings = defaultsettings.copy()
+    settings["compute_x_y_f"] = make_rate_fn(build_rate_fn_kwargs(simulation_settings))
+
+    BE = BF.BoundaryExplorer(**settings)
+    BE.get_initial_points(10)
+    BE.extend_boundary(**defaultargs)
+    np.save(os.path.join(outfolder_final, f"mat_{name}.npy"), BE.mat)
+    np.save(os.path.join(outfolder_final, f"mat_pars_{name}.npy"), BE.mat_pars)
+
+
+
+    
+
+    cycles = simulation_settings["cycles_1"] + simulation_settings["cycles_2"]
+    sub_cycle_fluxes = np.zeros((len(cycles), BE.mat.shape[0] + BE.mat.shape[1]))
+    for k, cycle in enumerate(cycles):
+        simulation_settings["cycles_1"] = [cycle] 
+        simulation_settings["cycles_2"] = []
+        subcycle_rate_fn = make_rate_fn(build_rate_fn_kwargs(simulation_settings))
+        for i in range(BE.mat.shape[0]):
+            for j in range(BE.mat.shape[1]):
+                params = BE.mat_pars[i, j, :]    
+                sub_cycle_fluxes[k, i + j] = subcycle_rate_fn(params)[0]
+
+    np.save(os.path.join(outfolder_final, f"sub_cycle_fluxes_{name}.npy"), sub_cycle_fluxes)
+    simulation_settings = load_simulation_settings(config_file_path)
+    with open(os.path.join(outfolder_final, f"{name_save}_config.json"), "w") as f:
+            json.dump(simulation_settings, f)
