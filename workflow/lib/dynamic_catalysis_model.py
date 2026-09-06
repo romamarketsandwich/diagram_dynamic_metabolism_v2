@@ -1,5 +1,4 @@
 import numpy as np
-import mpmath
 import networkx as nx
 import copy
 from itertools import product
@@ -10,17 +9,31 @@ import importlib
 import datetime
 import os
 from pathlib import Path
+import tqdm
 
-def root_tree_weights(spanning_tree, weights, absorption_edge_list=None, nodes=None, allNodes=True):
+def calculate_tree_weights(subgraph, weights, absorption_edge_list=None, root_nodes=None, all_nodes=True):
+    '''
+    Calculate the weight of a tree rooted at a specific node in a subgraph.
+    If multiple nodes are provided, then the weight of the tree rooted at each node is calculated and summed.
+    Args:
+        subgraph (nx.Graph): networkx graph representing the spanning tree of interest.
+        weights (dict): dictionary mapping edges to their weights.
+        absorption_edge_list (list): list of one-way edges in the subgraph.
+        root_nodes (list): list of nodes to consider as roots.
+    
+    Returns: 
+        float: total weight of the tree rooted at the specified nodes.
+    '''
     #assumes at least one valid root in the spanning tree implementing one-way fluxes. 
-    if nodes is None:
-        nodes = [n for n in spanning_tree]
+    if root_nodes is None:
+        root_nodes = [n for n in subgraph]
+
     
     """ 
     Key insight: if the tree contains a one-way edge, then nothing "upstream" of the one-way edge can be a root.
     Also, all flows "upstream" of one-way edge must flow through the one-way edge.
     
-    Else, there would exist at least one edge in spanning_tree that would connect "head" and "tail" subgraphs,
+    Else, there would exist at least one edge in subgraph that would connect "head" and "tail" subgraphs,
     suggesting a cycle. This is a contradiction.
 
     Therefore, we can recursively treat tree weight calculation by:
@@ -29,32 +42,32 @@ def root_tree_weights(spanning_tree, weights, absorption_edge_list=None, nodes=N
         3. tree weight rooted at node i in "head" = "tail" tree weight * one-way edge weight * "head" tree weight .
         4. Sum all tree weights over all i in the "head".
 
-    allNodes is a boolean describing if we should get all valid roots of the tree (MTT), True or just one node (cycle MTT), False.
+    all_nodes is a boolean describing if we should get all valid roots of the tree (MTT), True or just one node (cycle MTT), False.
     """
 
     """
     absorption_edge_set is a list of one-way edges. If None, then we assume no one-way edges in the spanning tree.
     
     """
-    spanning_tree = spanning_tree.copy()
+    subgraph = subgraph.copy()
     prefactor = 1
     if absorption_edge_list is not None:
         reversed_absorption_edges = [edge[::-1] for edge in absorption_edge_list]
     if absorption_edge_list is not None:
-        if any(edge in spanning_tree.edges or edge in reversed_absorption_edges for edge in absorption_edge_list):
+        if any(edge in subgraph.edges or edge in reversed_absorption_edges for edge in absorption_edge_list):
             # get the edges in the spanning tree
-            absorption_tree_edges = [edge for edge in absorption_edge_list if edge in spanning_tree.edges or edge[::-1] in spanning_tree.edges]
-            spanning_tree.remove_edges_from([edge for edge in absorption_edge_list + reversed_absorption_edges])
-            node_set = [nx.node_connected_component(spanning_tree, absorption_head) for absorption_head in [edge[1] for edge in absorption_edge_list]]
+            absorption_tree_edges = [edge for edge in absorption_edge_list if edge in subgraph.edges or edge[::-1] in subgraph.edges]
+            subgraph.remove_edges_from([edge for edge in absorption_edge_list + reversed_absorption_edges])
+            node_set = [nx.node_connected_component(subgraph, absorption_head) for absorption_head in [edge[1] for edge in absorption_edge_list]]
             # get member of node_set with least number of nodes
-            if allNodes:
+            if all_nodes:
                 sorted_node_set = sorted(node_set, key=lambda x: len(x))
-                nodes = sorted_node_set[0]
+                root_nodes = sorted_node_set[0]
             for absorption_edge in absorption_tree_edges:
-                prefactor = prefactor * root_tree_weights(spanning_tree, weights, absorption_edge_list=absorption_edge_list, nodes=[absorption_edge[0]], allNodes=allNodes) * \
+                prefactor = prefactor * calculate_tree_weights(subgraph, weights, absorption_edge_list=absorption_edge_list, root_nodes=[absorption_edge[0]], all_nodes=all_nodes) * \
                 weights.get(absorption_edge)
     total_weight = 0
-    for root in sorted(nodes):
+    for root in sorted(root_nodes):
         # Perform BFS to get the tree structure rooted at 'root'
         BFS_list = []
         visited = set()
@@ -62,8 +75,8 @@ def root_tree_weights(spanning_tree, weights, absorption_edge_list=None, nodes=N
         while queue:
             current = queue.pop(0)
             visited.add(current)
-            for neighbor in spanning_tree.neighbors(current):
-                if neighbor not in visited and (current, neighbor) in spanning_tree.edges:
+            for neighbor in subgraph.neighbors(current):
+                if neighbor not in visited and (current, neighbor) in subgraph.edges:
                     BFS_list.append((neighbor, current))  # Store as (child, parent)
                     queue.append(neighbor)
         # Calculate the weight of the rooted tree
@@ -77,10 +90,17 @@ def root_tree_weights(spanning_tree, weights, absorption_edge_list=None, nodes=N
 def contract_node(node_1, node_2, graph, graph_weights, absorption_edge_list=None):
     '''
     contract a graph by the specified edge. Adjust the graph_weights dict to re-map the node indices to the contracted graph.
-    node1: node to retain index number
-    node2: node to contract into node1
-    graph: undirected networkx graph showing connectivity (including absorption arrows). 
-    graph_weights: dict of weights assigned to edges (use function map_graph_weights)
+    Args:
+        node1 (int): node label to retain index number
+        node2 (int): node label to contract into node1
+        graph (nx.Graph): undirected networkx graph showing connectivity (including absorption arrows). 
+        graph_weights (dict): dict of weights assigned to edges (use function map_graph_weights)
+        absorption_edge_list (list): list of absorption edges in the graph.
+
+    Returns: 
+        new_graph_weights (dict): dict of weights assigned to edges in the contracted graph.
+        new_graph (nx.Graph): contracted networkx graph.
+        new_absorption_edge_list (list): list of absorption edges in the contracted graph.
     '''
     new_graph = nx.contracted_nodes(graph, node_1, node_2, self_loops=False, copy=True, store_contraction_as=None)
 
@@ -111,24 +131,20 @@ def contract_node(node_1, node_2, graph, graph_weights, absorption_edge_list=Non
             if node_2 == absorption_edge[1]:
                 absorption_edge = (absorption_edge[0], node_1)
             new_absorption_edge_list.append(absorption_edge)
-    
-    # finally, if we have contracted the graph such that an absorption arrow now has a reverse arrow, then it makes no sense to keep treating the absorption arrow like one.
-    # we 'neuter' the absorption requirement by making it a self-directed edge.
-    # if absorption_edge_1[::-1] in new_graph_weights.keys():
-    #     absorption_edge_1 = (absorption_edge_1[0], absorption_edge_1[0])
-    # if absorption_edge_2[::-1] in new_graph_weights.keys():
-    #     absorption_edge_2 = (absorption_edge_2[0], absorption_edge_1[0])
-
-    # print(set(graph_weights.keys()).difference(new_graph_weights.keys()))
-    # print(set(new_graph_weights.keys()).difference(graph_weights.keys()))
 
     return new_graph_weights, new_graph, new_absorption_edge_list
 
 def is_valid_root(spanning_tree, root_node, absorption_edge_list):
     '''
     given a spanning tree and a root, return if the given root is a valid spanning tree.
-
     root would not be a valid root of a spanning tree if it is upstream of an absorption arrow.
+
+    Args:
+        spanning_tree (nx.Graph): undirected networkx graph showing connectivity (including absorption arrows). 
+        root_node (int): node label to check if it is a valid root of the spanning tree.
+        absorption_edge_list (list): list of absorption edges in the graph.
+    Returns:
+        bool: True if root_node is a valid root of the spanning tree, False otherwise.
     '''
     if absorption_edge_list is None or len(absorption_edge_list) == 0:
         return True
@@ -147,12 +163,17 @@ def cycle_inflows(cycle, graph, graph_weights, absorption_edge_list=None):
     '''
     Calculate Sigma, the net inflow into the cycle. 
 
-    cycle: iterable of node indices with no repeated nodes. The assumption is that for indices 1, 2, ... n,
-        the cycle will proceed through nodes 1, 2, ..., n, 1, ...
-        Make sure that cycle has at least two nodes
-    graph: undirected networkx graph showing connectivity (including absorption arrows). 
-    graph_weights: dict of weights assigned to edges (use function map_graph_weights
-
+    Args:
+        cycle (iterable): iterable of node indices with no repeated nodes.
+        graph (nx.Graph): undirected networkx graph showing connectivity (including absorption arrows). 
+        graph_weights (dict): dict of weights assigned to edges (use function map_graph_weights).
+        absorption_edge_list (list): list of absorption edges in the graph.
+    Returns:
+        float: Sigma, the net inflow into the cycle.
+    '''
+    '''
+    The assumption is that for indices 1, 2, ... n, the cycle will proceed through nodes 1, 2, ..., n, 1, ...
+        Make sure that cycle has at least two nodes.
     '''
     assert len(cycle) >= 2    
     # contract cycle into a new node, named the first node of the cycle.
@@ -162,19 +183,6 @@ def cycle_inflows(cycle, graph, graph_weights, absorption_edge_list=None):
     if node_1 != cycle[1]:
         for i in range(1, len(cycle)):
             new_graph_weights, new_graph, absorption_edge_list = contract_node(node_1, cycle[i], new_graph, new_graph_weights, absorption_edge_list)
-
-    # get spanning trees of new graph
-    
-    # span_trees_graph = [i for i in nx.SpanningTreeIterator(new_graph)]
-    # check if node_1 is a valid root of each spanning tree, if not then exclude that spanning tree.
-    # for index, tree in enumerate(span_trees_graph):
-    #     if not is_valid_root(tree, node_1, absorption_edge_list=absorption_edge_list):
-    #         span_trees_graph[index] = np.nan
-    # span_trees_graph = [g for g in span_trees_graph if type(g) != float]
-    # Sigma = 0
-    # for spanning_tree in span_trees_graph:
-    #     # print(root_tree_weights(spanning_tree, new_graph_weights, absorption_edge_1=absorption_edge_1, absorption_edge_2=absorption_edge_2, nodes=[node_1]))
-    #     Sigma += root_tree_weights(spanning_tree, new_graph_weights, absorption_edge_list=absorption_edge_list, nodes=[node_1], allNodes=False)
     G = nx.DiGraph()
     for (u,v), attrs in new_graph_weights.items():
         G.add_edge(u, v, weight=np.float64(attrs))
@@ -189,12 +197,14 @@ def cycle_inflows(cycle, graph, graph_weights, absorption_edge_list=None):
 def cycle_coefficient(cycle, graph_weights):
     '''
     Calculate kappa, the cycle coefficient for a general n-state cycle
-    
-    cycle: iterable of node indices with no repeated nodes. The assumption is that for indices 1, 2, ... n,
-        the cycle will proceed through nodes 1, 2, ..., n, 1, ...
-        Make sure that cycle has at least two nodes.
+    Args:
+        cycle (iterable): iterable of node indices with no repeated nodes. The assumption is that for indices 1, 2, ... n,
+            the cycle will proceed through nodes 1, 2, ..., n, 1, ...
+            Make sure that cycle has at least two nodes.
 
-    graph_weights: dict of weights assigned to edges (use function map_graph_weights)
+        graph_weights (dict): dict of weights assigned to edges (use function map_graph_weights)
+    Returns:
+        float: kappa, the cycle coefficient for the cycle.
     '''
     assert len(cycle) >= 2
 
@@ -213,6 +223,13 @@ def generate_spanning_trees(graph, absorption_edge_list=None):
     Note that this is not the same as what's being performed in cycle_inflows. In cycle_inflows, we generate all valid spanning trees given a root node (a subset of this function's output).
     Here, we generate all valid spanning trees given _any_ root node. That is, if there is one or more valid roots of the tree, its spanning tree will be generated.
     Passing this set of spanning trees to root_tree_weights allows for the generation of the partition function (denominator of the MTT).
+    
+    Args:
+        graph (nx.Graph): undirected networkx graph showing connectivity (including absorption arrows).
+        absorption_edge_list (list, optional): list of edges that represent absorption processes.
+    Returns:
+        list: list of spanning trees (nx.Graph) for the given graph.
+    
     '''
     span_trees_graph = [i for i in nx.SpanningTreeIterator(graph)]
     for tree_index, tree in enumerate(span_trees_graph):
@@ -224,21 +241,6 @@ def generate_spanning_trees(graph, absorption_edge_list=None):
             span_trees_graph[tree_index] = np.nan
     return [g for g in span_trees_graph if type(g) != float]
 
-def max_rate_six_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
-                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
-    '''
-    get the maximum rate at steady-state under the Sabatier principle. Expression derived in Mathematica.
-    '''
-    return gamma * (alpha_32 * mpmath.exp((dG_1 + dG_2)/k_bT) * mpmath.sqrt((alpha_21 * (alpha_32 + gamma)) / (alpha_32 * gamma))) \
-    / (gamma * (2 * mpmath.exp((dG_1 + dG_2) / (2 * k_bT)) + mpmath.sqrt((alpha_21 * (alpha_32 + gamma)) / (alpha_32 * gamma))) \
-    + alpha_32 * (2 * mpmath.exp((dG_1 + dG_2) / (2 * k_bT)) + mpmath.sqrt((alpha_21 * (alpha_32 + gamma)) / (alpha_32 * gamma)) \
-    + mpmath.exp((dG_1 + dG_2) / k_bT) * mpmath.sqrt((alpha_21 * (alpha_32 + gamma)) / (alpha_32 * gamma))))
-
-def osc_midpoint_six_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
-                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
-    return -1/2 * (-dG_1 + dG_2 - k_bT * mpmath.log((alpha_21 * alpha_32 + alpha_21 * gamma) / (alpha_32 * gamma)))
-
-
 
 
 def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edge_list=None, max_ss_rate_fn=None, weight_mapping_fn=None, **params):
@@ -246,16 +248,20 @@ def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edg
     calculate the cycle flux given two sets of biochemical cycles (called turnover_cycles, futile_cycles here).
     The output (total flux attributable to turnover_cycles, total flux attributable to futile_cycles) will be used as input to BoundaryExplorer.
     
-    turnover_cycles: list of list of nodes. each constituent list of nodes represents one biochemical cycle attributable to turnover.
-    futile_cycles: list of list of nodes. each constituent list of nodes represents one biochemical cycle attributable to futile cycling.
-    reaction_graph: the dynamic reaction network to be subjected to the cyclic MTT.
-    graph_weights: weights of reaction_graph (generated with map_graph_weights)
-    absorption_edge_list: list of directed absorption edges representing turnover.
+    Args:
+        turnover_cycles (list of list of int): list of list of nodes. each constituent list of nodes represents one biochemical cycle attributable to turnover.
+        futile_cycles (list of list of int): list of list of nodes. each constituent list of nodes represents one biochemical cycle attributable to futile cycling.
+        reaction_graph (nx.Graph): the undirected reaction network to be subjected to the cyclic MTT.
+        weight_mapping_fn (function): function to map the reaction graph to a set of weights.
+        absorption_edge_list (list, optional): list of directed absorption edges representing turnover.
+    Returns:
+        tuple: (v_bar, q_bar) where v_bar is the normalized turnover flux and q_bar is the normalized futile flux.
     '''
     graph_weights = weight_mapping_fn(**params)
     max_steady_turnover = max_ss_rate_fn(**params)
     # spanning_trees = generate_spanning_trees(reaction_graph, absorption_edge_list=absorption_edge_list)
     # tree_weights = [root_tree_weights(spanning_trees[i], graph_weights, absorption_edge_list=absorption_edge_list, nodes=None, allNodes=True) for i in range(len(spanning_trees))]
+    #
     G = nx.DiGraph()
     for (u,v), attrs in graph_weights.items():
         G.add_edge(u, v, weight=np.float64(attrs))
@@ -275,282 +281,27 @@ def cycle_flux_fn(turnover_cycles, futile_cycles, reaction_graph, absorption_edg
     q_bar = np.sum(futile_flux_ls) / np.sum(turnover_flux_ls)
     return v_bar, q_bar
 
-def map_graph_weights_six_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_43, alpha_43_w, alpha_32_w, alpha_21_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
-                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
-    alpha_12 = alpha_21 * mpmath.exp((dG_1 + epsilon_1) / k_bT)
-    alpha_23 = alpha_32 * mpmath.exp((dG_2 - epsilon_1)/ k_bT)
 
-
-    alpha_45 = alpha_54 * mpmath.exp((dG_1 + epsilon_2) / k_bT)
-    alpha_56 = alpha_65 * mpmath.exp((dG_2 - epsilon_2) / k_bT)
-
-
-
-    alpha_25 = alpha_14
-    alpha_52 = alpha_41
-    alpha_36 = alpha_14
-    alpha_63 = alpha_41
-    d = {        
-        (0, 1) : alpha_12,
-        (1, 0) : alpha_21,
-        (1, 2) : alpha_23,
-        (2, 1) : alpha_32,
-        (3, 4) : alpha_45,
-        (4, 3) : alpha_54,
-        (4, 5) : alpha_56,
-        (5, 4) : alpha_65,
-        (0, 3) : alpha_14,
-        (3, 0) : alpha_41,
-        (1, 4) : alpha_25,
-        (4, 1) : alpha_52,
-        (2, 5) : alpha_36,
-        (5, 2) : alpha_63,
-        (2, 0) : gamma,
-        (5, 3) : gamma,
-    }
-
-    return d
-
-def map_graph_weights_eight_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_43, alpha_43_w, alpha_32_w, alpha_21_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
-                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
-    alpha_12 = alpha_21 * np.exp((dG_1 + epsilon_1) / k_bT)
-    alpha_23 = alpha_32 * np.exp((dG_2)/ k_bT)
-    alpha_34 = alpha_43 * np.exp((dG_3 - epsilon_1)/ k_bT)
-
-
-    alpha_56 = alpha_65 * np.exp((dG_1 + epsilon_2) / k_bT)
-    alpha_67 = alpha_76 * np.exp((dG_2) / k_bT)
-    alpha_78 = alpha_87 * np.exp((dG_2 - epsilon_2) / k_bT)
-
-    alpha_15 = alpha_14
-    alpha_51 = alpha_41
-    alpha_26 = alpha_14
-    alpha_62 = alpha_41
-    alpha_37 = alpha_14
-    alpha_73 = alpha_41
-    alpha_48 = alpha_14
-    alpha_84 = alpha_41
-
-    d = {        
-        (0, 1) : alpha_12,
-        (1, 0) : alpha_21,
-        (1, 2) : alpha_23,
-        (2, 1) : alpha_32,
-        (2, 3) : alpha_34,
-        (3, 2) : alpha_43,
-        (4, 5) : alpha_56,
-        (5, 4) : alpha_65,
-        (5, 6) : alpha_67,
-        (6, 5) : alpha_76,
-        (6, 7) : alpha_78,
-        (7, 6) : alpha_87,
-        (0, 4) : alpha_15,
-        (4, 0) : alpha_51,
-        (1, 5) : alpha_26,
-        (5, 1) : alpha_62,
-        (6, 2) : alpha_73,
-        (2, 6) : alpha_37,
-        (3, 7) : alpha_48,
-        (7, 3) : alpha_84,
-        (3, 0) : gamma,
-        (7, 4) : gamma,
-    }
-    return d
-
-
-
-def map_graph_weights_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_43, alpha_43_w, alpha_32_w, alpha_21_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
-                                    alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
-    alpha_12 = alpha_21 * np.exp((dG_1 + epsilon_1) / k_bT)
-    alpha_23 = alpha_32 * np.exp((dG_2 - epsilon_1)/ k_bT)
-    alpha_45 = alpha_54 * np.exp((dG_1 + epsilon_2) / k_bT)
-    alpha_56 = alpha_65 * np.exp((dG_2 - epsilon_2) / k_bT)
-    alpha_12_w = alpha_21_w * np.exp((dG_1_w + epsilon_1) / k_bT)
-    alpha_23_w = alpha_32_w * np.exp((dG_2_w - epsilon_1)/ k_bT)
-    alpha_45_w = alpha_54_w * np.exp((dG_1_w + epsilon_2) / k_bT)
-    alpha_56_w = alpha_65_w * np.exp((dG_2_w - epsilon_2) / k_bT)
-
-    alpha_25 = alpha_14
-    alpha_52 = alpha_41
-    alpha_36 = alpha_14
-    alpha_63 = alpha_41
-    alpha_25_w = alpha_14
-    alpha_52_w = alpha_41
-    alpha_36_w = alpha_14
-    alpha_63_w = alpha_41
-
-    d = {
-        (0, 1) : alpha_32_w,
-        (1, 0) : alpha_23_w,
-        (1, 2) : alpha_21_w,
-        (2, 1) : alpha_12_w,
-        (2, 3) : alpha_12,
-        (3, 2) : alpha_21,
-        (3, 4) : alpha_23,
-        (4, 3) : alpha_32,
-        (5, 6) : alpha_65_w,
-        (6, 5) : alpha_56_w,
-        (6, 7) : alpha_54_w,
-        (7, 6) : alpha_45_w,
-        (7, 8) : alpha_45,
-        (8, 7) : alpha_54,
-        (8, 9) : alpha_56,
-        (9, 8) : alpha_65,
-        (0, 5) : alpha_36_w,
-        (5, 0) : alpha_63_w,
-        (1, 6) : alpha_25_w,
-        (6, 1) : alpha_52_w,
-        (7, 2) : alpha_41,
-        (2, 7) : alpha_14,
-        (3, 8) : alpha_25,
-        (8, 3) : alpha_52,
-        (4, 9) : alpha_36,
-        (9, 4) : alpha_63,
-        (0, 2) : gamma,
-        (4, 2) : gamma,
-        (5, 7) : gamma,
-        (9, 7) : gamma,
-    }
-    return d
-
-def osc_midpoint_eight_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_54_w, alpha_43, alpha_43_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
-                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
-    alpha = 1/2 * (dG_1 - dG_3 + \
-                k_bT * np.log(-alpha_21 * alpha_32 * alpha_43 - \
-                alpha_21 * alpha_32  * alpha_43 * np.exp(dG_2/k_bT) -\
-                alpha_21  * alpha_32  * gamma - alpha_21 * alpha_32 * np.exp(dG_2/k_bT) * gamma)- \
-                k_bT * np.log(alpha_21 * alpha_43 * gamma + alpha_32 * alpha_43 *np.exp(dG_2/k_bT) * gamma))
-    return 0
-
-def max_rate_eight_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_43, alpha_43_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
-                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
-    alpha = (alpha_21 * alpha_32 * alpha_43 * np.exp((3 * dG_1 + 2 * dG_2 + 3 * dG_3)/(2 * k_bT)) *\
-    gamma * np.sqrt(alpha_43 * (alpha_21 + alpha_32 * np.exp(dG_2/k_bT)) * gamma) *\
-    np.sqrt(-alpha_21 * alpha_32 * (1 + np.exp(dG_2/k_bT)) * \
-    (alpha_43 + gamma)))/(alpha_32**2 * alpha_43**2 * \
-    np.exp((2 * (dG_2 + dG_3))/k_bT) * gamma**2 - \
-    alpha_21**2 * (-alpha_43**2 * np.exp((2 * dG_3)/k_bT) \
-    * gamma**2 + alpha_32**2 * np.exp((2 * dG_1)/k_bT)\
-    * (1 + np.exp(dG_2/k_bT))**2 * (alpha_43 + gamma)**2) \
-    + alpha_21 * np.exp(dG_3/(2 * k_bT)) * (alpha_43 * \
-    np.exp((3 * dG_1 + 2 * dG_3)/(2 * k_bT)) * gamma * \
-    np.sqrt(alpha_43 * (alpha_21 + alpha_32 *np.exp(dG_2/k_bT))\
-    * gamma) * np.sqrt(-alpha_21 * alpha_32 * (1 + np.exp(dG_2/k_bT)) \
-    * (alpha_43 + gamma)) + alpha_32 *  (2 * alpha_43**2 *np.exp((2 * dG_2 + 3 * dG_3)/(2 * k_bT)) \
-    * gamma**2 + alpha_43 *np.exp(dG_1/(2 * k_bT)) * (1 + np.exp((dG_1 + dG_2 + dG_3)/k_bT)) \
-    * np.sqrt(alpha_43 * (alpha_21 + alpha_32 *np.exp(dG_2/k_bT)) * gamma) * \
-    np.sqrt(-alpha_21 * alpha_32 * (1 + np.exp(dG_2/k_bT)) * (alpha_43 + gamma)) + \
-    np.exp(dG_1/(2 * k_bT)) * gamma * np.sqrt(alpha_43 * (alpha_21 + alpha_32 * \
-    np.exp(dG_2/k_bT)) * gamma) *np.sqrt(-alpha_21 * alpha_32 * (1 + np.exp(dG_2/k_bT)) * (alpha_43 + gamma)))))
-    return 1
-
-
-def generate_eight_state_graph():
-    G = nx.Graph()
-    G.add_nodes_from([3, 2, 1, 0, 4, 5, 6, 7])
-    G.add_edges_from([(0, 1), (1, 2), (2,3), (0,3), (4,5), (5,6), (6,7), (4,7), (0,4), (1,5), (2,6), (3,7)])
-    return G
-
-def generate_ten_state_graph():
-    G = nx.Graph()
-    G.add_nodes_from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    G.add_edges_from([(0, 1), (1, 2), (0,2), (2, 3), (3, 4), (4,2), (5, 6), (6, 7), (5, 7), (7, 8), (8, 9), (9, 7), (0, 5), (1, 6), (2, 7), (3, 8), (4, 9)])
-    return G
-
-def generate_six_state_graph():
-    G = nx.Graph()
-    G.add_nodes_from([2, 1, 0, 3, 4, 5])
-    G.add_edges_from([(0, 1), (1, 2), (0,2), (3,4), (4,5), (3,5), (0,3), (1,4), (2,5)])
-    return G
-
-def generate_eight_state_fundamental_cycles():
-    t1 = [0,1,2,3]
-    t2 = [4,5,6,7]
-    t3 = [0,4,5,6,7,3]
-    t4 = [4,0,1,2,3,7]
-    t5 = [4,0,1,5,6,7]
-    t6 = [0,4,5,1,2,3]
-    t7 = [0,4,5,6,2,3]
-    t8 = [4,0,1,2,6,7]
-    t9 = [0,1,5,6,2,3]
-    t10 = [4,5,1,2,6,7]
-    t11 = [0,4,5,1,2,6,7,3]
-    t12 = [4,0,1,5,6,2,3,7]
-    t13 = [0,1,5,6,7,3]
-    t14 = [4,5,1,2,3,7]
-    t15 = [4,5,6,2,3,7]
-    t16 = [0,1,2,6,7,3]
-
-    tf1 = [0,4]
-    tf2 = [1,5]
-    tf3 = [2,6]
-    tf4 = [3,7]
-
-    return [t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16], [tf1,tf2,tf3,tf4]
-
-def osc_midpoint_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_43, alpha_43_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
-                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT, **params):
-    return None
-
-    G = generate_ten_state_graph()
-    epsilon_list = np.linspace(-10, 10, 100)
-    J_tot_list_cycle_r = []
-    J_tot_list_cycle_w = []
-    
-    def max_rate_dummy(**params):
-        return 1
-    
-    for epsilon in epsilon_list:
-        epsilon_1 = epsilon
-        epsilon_2 = epsilon
-        alpha_14 = 1e-11
-        alpha_41 = 1e-11
-        right_cycles = [[2,3,4], [7,8,9], [2, 7, 8, 9, 4], [7, 2, 3, 4, 9], [7,2,3,8,9], [2,7,8,3,4], [2,3,8,9,7], [7,8,3,4,9]]
-        wrong_cycles = [[2,1,0], [7,6,5], [2, 7, 6, 5, 0], [7, 2, 1, 0, 5], [7,2,1,6,5], [2,7,6,1,0], [2,1,6,5,7], [7,6,1,0,5]]
-        futile_cycles = [[0,5], [1,6], [2,7], [3,8], [4,9]]
-        J_tot_r, J_tot_w = cycle_flux_fn(right_cycles, wrong_cycles, G, [(0,2), (5,7), (4,2), (9,7)], max_ss_rate_fn=max_rate_dummy, weight_mapping_fn=map_graph_weights_ten_states, alpha_32=alpha_32, \
-                                                alpha_21=alpha_21, alpha_54=alpha_54, alpha_65=alpha_65, alpha_43=alpha_43, alpha_43_w=alpha_43_w, \
-                                                alpha_21_w=alpha_21, alpha_32_w=alpha_32, alpha_54_w=alpha_54, alpha_65_w=alpha_65, dG_1=dG_1, dG_2=dG_2, dG_1_w = dG_1_w, dG_2_w = dG_2_w, dG_3=dG_3, dG_3_w=dG_3_w, \
-                                                gamma=gamma, epsilon_1=epsilon_1, epsilon_2=epsilon_2, k_bT=k_bT, alpha_14=alpha_14, alpha_41=alpha_41, alpha_76=alpha_76, alpha_87=alpha_87, alpha_76_w=alpha_76_w, alpha_87_w=alpha_87_w)
-        J_tot_list_cycle_r.append(J_tot_r * max_rate_dummy())
-        J_tot_list_cycle_w.append(J_tot_w * max_rate_dummy())
-
-        return epsilon_list[np.argmax(np.array(J_tot_list_cycle_r))]
-
-def max_rate_ten_states(alpha_32, alpha_21, alpha_54, alpha_65, alpha_32_w, alpha_21_w, alpha_43, alpha_43_w, alpha_54_w, alpha_65_w, alpha_76, alpha_87, alpha_76_w, alpha_87_w,\
-                                 alpha_14, alpha_41, dG_1, dG_2, dG_1_w, dG_2_w, dG_3, dG_3_w, gamma, epsilon_1, epsilon_2, k_bT,**params):
-    return 3
-    G = generate_ten_state_graph()
-    epsilon_list = np.linspace(-10, 10, 100)
-    J_tot_list_cycle_r = []
-    J_tot_list_cycle_w = []
-    
-    def max_rate_dummy(**params):
-        return 1
-    
-    for epsilon in epsilon_list:
-        epsilon_1 = epsilon
-        epsilon_2 = epsilon
-        alpha_14 = 1e-11
-        alpha_41 = 1e-11
-        right_cycles = [[2,3,4], [7,8,9], [2, 7, 8, 9, 4], [7, 2, 3, 4, 9], [7,2,3,8,9], [2,7,8,3,4], [2,3,8,9,7], [7,8,3,4,9]]
-        wrong_cycles = [[2,1,0], [7,6,5], [2, 7, 6, 5, 0], [7, 2, 1, 0, 5], [7,2,1,6,5], [2,7,6,1,0], [2,1,6,5,7], [7,6,1,0,5]]
-        futile_cycles = [[0,5], [1,6], [2,7], [3,8], [4,9]]
-        J_tot_r, J_tot_w = cycle_flux_fn(right_cycles, wrong_cycles, G, [(0,2), (5,7), (4,2), (9,7)], max_ss_rate_fn=max_rate_dummy, weight_mapping_fn=map_graph_weights_ten_states, alpha_32=alpha_32, \
-                                                alpha_21=alpha_21, alpha_54=alpha_54, alpha_65=alpha_65,\
-                                                alpha_21_w=alpha_21, alpha_32_w=alpha_32, alpha_54_w=alpha_54, alpha_43=alpha_43, alpha_43_w=alpha_43_w, alpha_65_w=alpha_65, dG_1=dG_1, dG_2=dG_2, dG_1_w = dG_1_w, dG_2_w = dG_2_w, dG_3=dG_3, dG_3_w=dG_3_w,\
-                                                gamma=gamma, epsilon_1=epsilon_1, epsilon_2=epsilon_2, k_bT=k_bT, alpha_14=alpha_14, alpha_41=alpha_41, alpha_76=alpha_76, alpha_87=alpha_87, alpha_76_w=alpha_76_w, alpha_87_w=alpha_87_w)
-        J_tot_list_cycle_r.append(J_tot_r * max_rate_dummy())
-        J_tot_list_cycle_w.append(J_tot_w * max_rate_dummy())
-
-    return np.max(np.array(J_tot_list_cycle_r))
 
 def load_simulation_settings(config_file_path):
+    '''
+    Load simulation settings from a JSON file.
+    Args:
+        config_file_path (str): The path to the JSON configuration file.
+    Returns:
+        dict: A dictionary containing the simulation settings.
+    '''
     with open(config_file_path, "r") as f:
         return json.load(f)
 
 
 def build_rate_fn_kwargs(simulation_settings):
+    '''
+    Build a dictionary of keyword arguments for the rate function based on the simulation settings.
+    Args:
+        simulation_settings (dict): A dictionary containing the simulation settings.
+    Returns:
+        dict: A dictionary of keyword arguments for the rate function.'''
     return {
         "cycles_1": simulation_settings.get("cycles_1", None),
         "cycles_2": simulation_settings.get("cycles_2", None),
@@ -585,6 +336,13 @@ def build_rate_fn_kwargs(simulation_settings):
 
 
 def make_rate_fn(hyperparams):
+    '''
+    Create a rate function based on the provided hyperparameters.
+    Args:
+        hyperparams (dict): A dictionary containing the hyperparameters for the rate function.
+    Returns:
+        function: A rate function that takes a list of parameters and returns the rate.
+    '''
     weight_mapping_fn = hyperparams["weight_mapping_fn"]
     max_ss_rate_fn = hyperparams["max_ss_rate_fn"]
     osc_midpoint_fn = hyperparams["osc_midpoint_fn"]
@@ -648,12 +406,53 @@ def make_rate_fn(hyperparams):
 
 
 def run_dycat_model(config_file_path):
+    '''
+    Run the dynamic catalysis model based on the provided configuration file.
+    Args:
+        config_file_path (str): The path to the JSON configuration file.
+    Returns:
+        str: The path to the output folder where results are saved.
+    '''
     simulation_settings = load_simulation_settings(config_file_path)
 
     outfolder = simulation_settings.get("folder_save")
     outfolder_final = f"{outfolder}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
     name_save = simulation_settings.get("name_save")
     name = f"{name_save}_last"
+    mod = importlib.import_module("utils")
+    simulation_settings["weight_mapping_fn"] = getattr(mod, simulation_settings["weight_mapping_fn"])
+    simulation_settings["graph_fn"] = getattr(mod, simulation_settings["graph_fn"])
+    if simulation_settings.get("max_ss_rate_fn") is None and simulation_settings.get("osc_midpoint_fn") is None:
+        def dummy_max_rate_fn(**params):
+            return 1
+        def dummy_osc_midpoint_fn(**params):
+            return 0
+        
+        simulation_settings["max_ss_rate_fn"] = dummy_max_rate_fn
+        simulation_settings["osc_midpoint_fn"] = dummy_osc_midpoint_fn
+        dummy_rate_fn = make_rate_fn(build_rate_fn_kwargs(simulation_settings))
+        epsilon_list = np.linspace(-10, 10, 100)
+        J_tot_list_cycle_r = []
+        J_tot_list_cycle_w = []
+        for epsilon in epsilon_list:    
+            J_tot_r, J_tot_w = dummy_rate_fn([1e-11, 1e-11, epsilon, epsilon])
+            J_tot_list_cycle_r.append(J_tot_r)
+            J_tot_list_cycle_w.append(J_tot_w)
+        max_index = np.argmax(np.array(J_tot_list_cycle_r))
+        max_epsilon = epsilon_list[max_index]
+        max_rate = J_tot_list_cycle_r[max_index]
+
+        def osc_midpoint_fn(**params):
+            return max_epsilon
+        def max_rate_fn(**params):
+            return max_rate
+        simulation_settings["max_ss_rate_fn"] = max_rate_fn
+        simulation_settings["osc_midpoint_fn"] = osc_midpoint_fn
+    else:
+        assert simulation_settings.get("max_ss_rate_fn") is not None, "max_ss_rate_fn must be specified in the config file"
+        assert simulation_settings.get("osc_midpoint_fn") is not None, "osc_midpoint_fn must be specified in the config file"
+        simulation_settings["max_ss_rate_fn"] = getattr(mod, simulation_settings["max_ss_rate_fn"])
+        simulation_settings["osc_midpoint_fn"] = getattr(mod, simulation_settings["osc_midpoint_fn"])
 
     assert simulation_settings.get("col_ar_min") is not None, "col_ar_min must be specified in the config file"
     assert simulation_settings.get("col_ar_max") is not None, "col_ar_max must be specified in the config file"
@@ -664,8 +463,8 @@ def run_dycat_model(config_file_path):
     assert simulation_settings.get("pars_limit_max") is not None, "pars_limit_max must be specified in the config file"
     assert simulation_settings.get("npars") is not None, "npars must be specified in the config file"
     assert simulation_settings.get("weight_mapping_fn") is not None, "weight_mapping_fn must be specified in the config file"
-    assert simulation_settings.get("max_ss_rate_fn") is not None, "max_ss_rate_fn must be specified in the config file"
-    assert simulation_settings.get("osc_midpoint_fn") is not None, "osc_midpoint_fn must be specified in the config file"
+    # assert simulation_settings.get("max_ss_rate_fn") is not None, "max_ss_rate_fn must be specified in the config file"
+    # assert simulation_settings.get("osc_midpoint_fn") is not None, "osc_midpoint_fn must be specified in the config file"
     assert simulation_settings.get("graph_fn") is not None, "graph_fn must be specified in the config file"
 
     stp_ar = np.linspace(
@@ -689,7 +488,7 @@ def run_dycat_model(config_file_path):
         "seed": simulation_settings.get("seed", None),
         "mat": simulation_settings.get("mat", None),
         "mat_pars": simulation_settings.get("mat_pars", None),
-        "npars": simulation_settings.get("npars", None),
+        "npars": simulation_settings.get("npars", None)
     }
 
     defaultargs = {
@@ -710,12 +509,10 @@ def run_dycat_model(config_file_path):
         "name_save": name_save,
     }
 
-    mod = importlib.import_module("dynamic_catalysis_model")
-    simulation_settings["weight_mapping_fn"] = getattr(mod, simulation_settings["weight_mapping_fn"])
-    simulation_settings["max_ss_rate_fn"] = getattr(mod, simulation_settings["max_ss_rate_fn"])
-    simulation_settings["osc_midpoint_fn"] = getattr(mod, simulation_settings["osc_midpoint_fn"])
-    simulation_settings["graph_fn"] = getattr(mod, simulation_settings["graph_fn"])
+    
 
+
+    simulation_settings["npars"] = simulation_settings.get("npars", None) 
     os.makedirs(outfolder_final, exist_ok=True)
 
     settings = defaultsettings.copy()
@@ -732,17 +529,31 @@ def run_dycat_model(config_file_path):
     
 
     cycles = simulation_settings["cycles_1"] + simulation_settings["cycles_2"]
-    sub_cycle_fluxes = np.zeros((len(cycles), BE.mat.shape[0] + BE.mat.shape[1]))
-    for k, cycle in enumerate(cycles):
-        simulation_settings["cycles_1"] = [cycle] 
-        simulation_settings["cycles_2"] = []
-        subcycle_rate_fn = make_rate_fn(build_rate_fn_kwargs(simulation_settings))
-        for i in range(BE.mat.shape[0]):
-            for j in range(BE.mat.shape[1]):
-                params = BE.mat_pars[i, j, :]    
-                sub_cycle_fluxes[k, i + j] = subcycle_rate_fn(params)[0]
+    sub_cycle_fluxes = np.zeros((len(cycles), BE.mat_pars.shape[0] * BE.mat_pars.shape[1]))
+    print(f"Calculating sub-cycle fluxes for {BE.mat_pars.shape[0] * BE.mat_pars.shape[1]} points... ")
+
+    total_evaluations = (
+        len(cycles) * BE.mat_pars.shape[0] * BE.mat_pars.shape[1]
+    )
+
+    with tqdm.tqdm(
+        total=total_evaluations,
+        desc="Calculating subcycle fluxes",
+        unit="evaluation",
+    ) as progress:
+        for k, cycle in enumerate(cycles):
+            simulation_settings["cycles_1"] = [cycle]
+            simulation_settings["cycles_2"] = []
+            subcycle_rate_fn = make_rate_fn(build_rate_fn_kwargs(simulation_settings))
+
+            for i in range(BE.mat_pars.shape[0]):
+                for j in range(BE.mat_pars.shape[1]):
+                    params = BE.mat_pars[i, j, :]
+                    sub_cycle_fluxes[k, i + j] = subcycle_rate_fn(params)[0]
+                    progress.update(1)
 
     np.save(os.path.join(outfolder_final, f"sub_cycle_fluxes_{name}.npy"), sub_cycle_fluxes)
     simulation_settings = load_simulation_settings(config_file_path)
     with open(os.path.join(outfolder_final, f"{name_save}_config.json"), "w") as f:
             json.dump(simulation_settings, f)
+    return outfolder_final

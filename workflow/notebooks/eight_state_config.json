@@ -27,8 +27,6 @@
   "absorption_edge_list": [[2,0], [5,3]],
   "graph_fn": "generate_eight_state_graph",
   "weight_mapping_fn": "map_graph_weights_eight_states",
-  "osc_midpoint_fn": "osc_midpoint_eight_states",
-  "max_ss_rate_fn": "max_rate_eight_states",
   "alpha_32": 1.0,
   "alpha_21": 1.0,
   "alpha_54": 1.0,
@@ -41,6 +39,6 @@
   "dG_3": 2,
   "dG_1": 2,
   "dG_2": 2,
-  "gamma": 20,
+  "gamma": 200000,
   "k_bT": 1
 }

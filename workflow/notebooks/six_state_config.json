@@ -9,7 +9,7 @@
   "col_ar_max": 10,
   "n_grid": 200,
   "seed": 42,
-  "niters": 1,
+  "niters": 20,
   "npars": 3,
   "niters_conv_points": 10,
   "niters_save": 4,
@@ -38,5 +38,6 @@
   "dG_1": 2,
   "dG_2": 2,
   "gamma": 200000000,
-  "k_bT": 1
+  "k_bT": 1,
+  "stochastic_resetting_rate": 0.0
 }
